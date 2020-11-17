@@ -31,12 +31,12 @@ class LoadPatch(object):
         else:
             filename = results['img_info']['filename']
 
-        img = results['img']
-        gt_semantic_seg = results['gt_semantic_seg']
-        up = results['img_info']['up']
-        left = results['img_info']['left']
-        patch_height = results['img_info']['patch_height']
-        patch_width = results['img_info']['patch_width']
+        img = results['img_info']['img']
+        gt_semantic_seg = results['ann_info']['gt_semantic_seg']
+        up = results['img_info']['patch_info']['up']
+        left = results['img_info']['patch_info']['left']
+        patch_height = results['img_info']['patch_info']['patch_height']
+        patch_width = results['img_info']['patch_info']['patch_width']
         results['ori_shape'] = img.shape
 
         img = img[up:up + patch_height, left:left + patch_width, :]

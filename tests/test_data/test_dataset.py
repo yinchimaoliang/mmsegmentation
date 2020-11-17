@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import torch
 from os import path as osp
 from unittest.mock import MagicMock, patch
 
@@ -278,19 +279,23 @@ class TestDataset(object):
             img_dir=osp.join(self.data_prefix, 'pathology/images'),
             ann_dir=osp.join(self.data_prefix, 'pathology/annotations'),
             pipeline=[
-                dict(
-                    type='RandomCrop',
-                    crop_size=[1024, 1024],
-                    cat_max_ratio=0.50),
+                dict(type='LoadPatch'),
                 dict(type='RandomFlip', prob=0.5),
                 dict(type='Normalize', **img_norm_cfg),
                 dict(type='DefaultFormatBundle'),
                 dict(type='Collect', keys=['img', 'gt_semantic_seg']),
             ],
             use_patch=True,
-            random_sampling=True,
+            random_sampling=False,
             patch_num=100)
 
         # test load annotations
         pathology = build_dataset(cfg)
-        assert len(pathology.img_infos) == 1
+        assert len(pathology.img_infos) == 286
+
+        sample = pathology[0]
+        img = sample['img']
+        gt_semantic_seg = sample['gt_semantic_seg']
+
+        assert img.data.shape == torch.Size([3, 512, 512])
+        assert gt_semantic_seg.data.shape == torch.Size([1, 512, 512])
