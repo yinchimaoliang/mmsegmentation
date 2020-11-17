@@ -1,13 +1,12 @@
-import os.path as osp
-from unittest.mock import MagicMock, patch
-
 import numpy as np
 import pytest
+from os import path as osp
+from unittest.mock import MagicMock, patch
 
 from mmseg.core.evaluation import get_classes, get_palette
 from mmseg.datasets import (DATASETS, ADE20KDataset, CityscapesDataset,
                             ConcatDataset, CustomDataset, PascalVOCDataset,
-                            RepeatDataset)
+                            RepeatDataset, build_dataset)
 
 
 def test_classes():
@@ -261,3 +260,37 @@ def test_custom_dataset_custom_palette():
         palette=[[100, 100, 100], [200, 200, 200]],
         test_mode=True)
     assert tuple(dataset.PALETTE) == tuple([[100, 100, 100], [200, 200, 200]])
+
+
+class TestDataset(object):
+
+    @classmethod
+    def setup_class(cls):
+        cls.data_prefix = osp.join(osp.dirname(__file__), '../data')
+
+    def test_pathology_dataset(self):
+        img_norm_cfg = dict(
+            mean=[123.675, 116.28, 103.53],
+            std=[58.395, 57.12, 57.375],
+            to_rgb=True)
+        cfg = dict(
+            type='PathologyDataset',
+            img_dir=osp.join(self.data_prefix, 'pathology/images'),
+            ann_dir=osp.join(self.data_prefix, 'pathology/annotations'),
+            pipeline=[
+                dict(
+                    type='RandomCrop',
+                    crop_size=[1024, 1024],
+                    cat_max_ratio=0.50),
+                dict(type='RandomFlip', prob=0.5),
+                dict(type='Normalize', **img_norm_cfg),
+                dict(type='DefaultFormatBundle'),
+                dict(type='Collect', keys=['img', 'gt_semantic_seg']),
+            ],
+            use_patch=True,
+            random_sampling=True,
+            patch_num=100)
+
+        # test load annotations
+        pathology = build_dataset(cfg)
+        assert len(pathology.img_infos) == 1
