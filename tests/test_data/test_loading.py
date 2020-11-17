@@ -1,11 +1,11 @@
 import copy
-import os.path as osp
-import tempfile
-
 import mmcv
 import numpy as np
+import tempfile
+from os import path as osp
 
-from mmseg.datasets.pipelines import LoadAnnotations, LoadImageFromFile
+from mmseg.datasets.pipelines import (LoadAnnotations, LoadImageFromFile,
+                                      LoadPatch)
 
 
 class TestLoading(object):
@@ -13,6 +13,27 @@ class TestLoading(object):
     @classmethod
     def setup_class(cls):
         cls.data_prefix = osp.join(osp.dirname(__file__), '../data')
+
+    def test_load_patch(self):
+        img = mmcv.imread(osp.join(self.data_prefix, 'color.jpg'))
+        gt_semantic_seg = mmcv.imread(
+            osp.join(self.data_prefix, 'seg.png'), 'grayscale')
+        results = dict(
+            img=img,
+            gt_semantic_seg=gt_semantic_seg,
+            img_prefix=osp.join(self.data_prefix, 'images'),
+            img_info=dict(
+                filename='test.png',
+                up=0,
+                left=0,
+                patch_width=100,
+                patch_height=100))
+        load_patch = LoadPatch()
+        results = load_patch(results)
+        img = results['img']
+        gt_semantic_seg = results['gt_semantic_seg']
+        assert img.shape == (100, 100, 3)
+        assert gt_semantic_seg.shape == (100, 100)
 
     def test_load_img(self):
         results = dict(
