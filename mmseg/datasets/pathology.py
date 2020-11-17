@@ -91,6 +91,7 @@ class PathologyDataset(CustomDataset):
                 if not self.random_sampling:
                     img_height = img.shape[0]
                     img_width = img.shape[1]
+                    # TODO: change to vector based function
                     for i in range(
                             int(ceil(img_height / self.vertical_stride))):
                         for j in range(
@@ -117,6 +118,8 @@ class PathologyDataset(CustomDataset):
                             patch_infos.append(img_info)
                 else:
                     patch_infos.append(dict(filename=filename))
-                return patch_infos
+
+                print(f'{filename} loaded.')
+            return patch_infos
 
         return img_infos
