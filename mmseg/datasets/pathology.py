@@ -94,7 +94,7 @@ class PathologyDataset(CustomDataset):
         img_infos = super().load_annotations(img_dir, img_suffix, ann_dir,
                                              seg_map_suffix, split)
         if self.use_patch:
-            patch_infos = []
+            patch_img_infos = []
             for img_info in img_infos:
                 filename = img_info['filename']
                 seg_map_name = img_info['ann']['seg_map']
@@ -132,14 +132,48 @@ class PathologyDataset(CustomDataset):
                                 left=left,
                                 patch_height=self.patch_height,
                                 patch_width=self.patch_width)
-                            patch_infos.append(img_info)
+                            patch_img_infos.append(img_info)
                 else:
-                    patch_infos.append(dict(filename=filename))
+
+                    num_channels = 1 if len(img.shape) < 3 else img.shape[2]
+                    patch_img_info = dict(
+                        img_prefix=osp.join(self.data_root, 'images'),
+                        filename=filename,
+                        ori_filename=img_info['filename'],
+                        ori_shape=img.shape,
+                        pad_shape=img.shape,
+                        scale_factor=1.0,
+                        img_norm_cfg=dict(
+                            mean=np.zeros(num_channels, dtype=np.float32),
+                            std=np.ones(num_channels, dtype=np.float32),
+                            to_rgb=False),
+                        img=img,
+                        ann=img_info['ann'],
+                        gt_semantic_seg=ann,
+                        img_info=img_info,
+                        seg_fields=['gt_semantic_seg'])
+                    patch_img_infos.append(patch_img_info)
 
                 print(f'{filename} loaded.')
-            return patch_infos
+            return patch_img_infos
 
         return img_infos
+
+    def prepare_train_img(self, idx):
+        """Get training data and annotations after pipeline.
+
+        Args:
+            idx (int): Index of data.
+
+        Returns:
+            dict: Training data and annotation after pipeline with new keys
+                introduced by pipeline.
+        """
+
+        if self.random_sampling:
+            return self.pipeline(self.img_infos[idx])
+        else:
+            return super().prepare_train_img(idx)
 
     def evaluate(self, results, metric='mIoU', logger=None, **kwargs):
         for i, img_info in enumerate(self.img_infos):
