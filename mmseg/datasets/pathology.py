@@ -1,4 +1,5 @@
 import mmcv
+import numpy as np
 from math import ceil
 from os import path as osp
 
@@ -56,8 +57,22 @@ class PathologyDataset(CustomDataset):
         self.patch_num = patch_num
         self.img_dict = dict()
         self.ann_dict = dict()
+        self.result_dict = dict()
         super(PathologyDataset, self).__init__(
             img_suffix='.JPG', seg_map_suffix='_mask.png', **kwargs)
+
+    def get_gt_seg_maps(self):
+        """Get ground truth segmentation maps for evaluation."""
+        if self.use_patch:
+            gt_seg_maps = []
+            for filename in self.result_dict.keys():
+                gt_seg_map = mmcv.imread(
+                    osp.join(self.ann_dir, filename), 'grayscale')
+                gt_seg_maps.append(gt_seg_map)
+        else:
+            gt_seg_maps = super().get_gt_seg_maps()
+
+        return gt_seg_maps
 
     def load_annotations(self, img_dir, img_suffix, ann_dir, seg_map_suffix,
                          split):
@@ -88,6 +103,8 @@ class PathologyDataset(CustomDataset):
                     osp.join(self.ann_dir, seg_map_name), 'grayscale')
                 self.img_dict[filename] = img
                 self.ann_dict[filename] = ann
+                self.result_dict[img_info['ann']['seg_map']] = np.zeros_like(
+                    ann)
                 if not self.random_sampling:
                     img_height = img.shape[0]
                     img_width = img.shape[1]
@@ -123,3 +140,15 @@ class PathologyDataset(CustomDataset):
             return patch_infos
 
         return img_infos
+
+    def evaluate(self, results, metric='mIoU', logger=None, **kwargs):
+        for i, img_info in enumerate(self.img_infos):
+            up = img_info['patch_info']['up']
+            left = img_info['patch_info']['left']
+            patch_height = img_info['patch_info']['patch_height']
+            patch_width = img_info['patch_info']['patch_width']
+            self.result_dict[img_info['ann']['seg_map']][
+                up:up + patch_height, left:left + patch_width] = results[i]
+
+        return super().evaluate(
+            list(self.result_dict.values()), metric, logger)

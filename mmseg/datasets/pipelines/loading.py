@@ -6,7 +6,7 @@ from ..builder import PIPELINES
 
 
 @PIPELINES.register_module()
-class LoadPatch(object):
+class LoadImagePatch(object):
     """Given whole image and patch info, generate corresponding patch.
 
     Args:
@@ -32,27 +32,17 @@ class LoadPatch(object):
             filename = results['img_info']['filename']
 
         img = results['img_info']['img']
-        gt_semantic_seg = results['ann_info']['gt_semantic_seg']
         up = results['img_info']['patch_info']['up']
         left = results['img_info']['patch_info']['left']
         patch_height = results['img_info']['patch_info']['patch_height']
         patch_width = results['img_info']['patch_info']['patch_width']
-        results['ori_shape'] = img.shape
 
         img = img[up:up + patch_height, left:left + patch_width, :]
-        gt_semantic_seg = gt_semantic_seg[up:up + patch_height,
-                                          left:left + patch_width]
-
-        if self.reduce_zero_label:
-            # avoid using underflow conversion
-            gt_semantic_seg[gt_semantic_seg == 0] = 255
-            gt_semantic_seg = gt_semantic_seg - 1
-            gt_semantic_seg[gt_semantic_seg == 254] = 255
+        results['ori_shape'] = img.shape
 
         results['filename'] = filename
         results['ori_filename'] = results['img_info']['filename']
         results['img'] = img
-        results['gt_semantic_seg'] = gt_semantic_seg
         results['img_shape'] = img.shape
 
         # Set initial values for default meta_keys
@@ -63,6 +53,46 @@ class LoadPatch(object):
             mean=np.zeros(num_channels, dtype=np.float32),
             std=np.ones(num_channels, dtype=np.float32),
             to_rgb=False)
+
+        return results
+
+
+@PIPELINES.register_module()
+class LoadAnnotationPatch(object):
+    """Given whole image and patch info, generate corresponding patch.
+
+    Args:
+
+        to_float32 (bool): Whether to convert the loaded image to a float32
+            numpy array. If set to False, the loaded image is an uint8 array.
+            Defaults to False.
+
+        reduce_zero_label (bool): Whether reduce all label value by 1.
+            Usually used for datasets where 0 is background label.
+            Default: False.
+    """
+
+    def __init__(self, to_float32=False, reduce_zero_label=False):
+        self.to_float32 = to_float32
+        self.reduce_zero_label = reduce_zero_label
+
+    def __call__(self, results):
+        gt_semantic_seg = results['ann_info']['gt_semantic_seg']
+        up = results['img_info']['patch_info']['up']
+        left = results['img_info']['patch_info']['left']
+        patch_height = results['img_info']['patch_info']['patch_height']
+        patch_width = results['img_info']['patch_info']['patch_width']
+
+        gt_semantic_seg = gt_semantic_seg[up:up + patch_height,
+                                          left:left + patch_width]
+
+        if self.reduce_zero_label:
+            # avoid using underflow conversion
+            gt_semantic_seg[gt_semantic_seg == 0] = 255
+            gt_semantic_seg = gt_semantic_seg - 1
+            gt_semantic_seg[gt_semantic_seg == 254] = 255
+
+        results['gt_semantic_seg'] = gt_semantic_seg
 
         return results
 
