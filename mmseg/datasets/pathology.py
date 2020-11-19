@@ -46,7 +46,6 @@ class PathologyDataset(CustomDataset):
                  vertical_stride=512,
                  patch_width=512,
                  patch_height=512,
-                 patch_num=1,
                  **kwargs):
         self.use_patch = use_patch
         self.random_sampling = random_sampling
@@ -54,7 +53,6 @@ class PathologyDataset(CustomDataset):
         self.vertical_stride = vertical_stride
         self.patch_width = patch_width
         self.patch_height = patch_height
-        self.patch_num = patch_num
         self.img_dict = dict()
         self.ann_dict = dict()
         self.result_dict = dict()
