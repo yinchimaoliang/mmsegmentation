@@ -1,3 +1,4 @@
+import copy
 import mmcv
 import numpy as np
 from math import ceil
@@ -121,16 +122,18 @@ class PathologyDataset(CustomDataset):
                                 up = i * self.vertical_stride
                             else:
                                 up = img_height - self.patch_height
-                            img_info['img_prefix'] = self.img_dir
-                            img_info['img'] = img
-                            img_info['ann']['gt_semantic_seg'] = ann
-                            img_info['patch_info'] = dict(
+
+                            img_patch_info = copy.deepcopy(img_info)
+                            img_patch_info['img_prefix'] = self.img_dir
+                            img_patch_info['img'] = img
+                            img_patch_info['ann']['gt_semantic_seg'] = ann
+                            img_patch_info['patch_info'] = dict(
                                 filename=filename,
                                 up=up,
                                 left=left,
                                 patch_height=self.patch_height,
                                 patch_width=self.patch_width)
-                            patch_img_infos.append(img_info)
+                            patch_img_infos.append(img_patch_info)
                 else:
 
                     num_channels = 1 if len(img.shape) < 3 else img.shape[2]
@@ -167,9 +170,9 @@ class PathologyDataset(CustomDataset):
             dict: Training data and annotation after pipeline with new keys
                 introduced by pipeline.
         """
-
         if self.random_sampling:
-            return self.pipeline(self.img_infos[idx])
+            img_info = copy.deepcopy(self.img_infos[idx])
+            return self.pipeline(img_info)
         else:
             return super().prepare_train_img(idx)
 
