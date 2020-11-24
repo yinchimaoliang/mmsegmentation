@@ -177,13 +177,16 @@ class PathologyDataset(CustomDataset):
             return super().prepare_train_img(idx)
 
     def evaluate(self, results, metric='mIoU', logger=None, **kwargs):
-        for i, img_info in enumerate(self.img_infos):
-            up = img_info['patch_info']['up']
-            left = img_info['patch_info']['left']
-            patch_height = img_info['patch_info']['patch_height']
-            patch_width = img_info['patch_info']['patch_width']
-            self.result_dict[img_info['ann']['seg_map']][
-                up:up + patch_height, left:left + patch_width] = results[i]
+        if self.use_patch:
+            for i, img_info in enumerate(self.img_infos):
+                up = img_info['patch_info']['up']
+                left = img_info['patch_info']['left']
+                patch_height = img_info['patch_info']['patch_height']
+                patch_width = img_info['patch_info']['patch_width']
+                self.result_dict[img_info['ann']['seg_map']][
+                    up:up + patch_height, left:left + patch_width] = results[i]
 
-        return super().evaluate(
-            list(self.result_dict.values()), metric, logger)
+            return super().evaluate(
+                list(self.result_dict.values()), metric, logger)
+        else:
+            return super().evaluate(results, metric, logger)

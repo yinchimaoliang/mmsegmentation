@@ -1,9 +1,8 @@
-import os.path as osp
-from functools import reduce
-
 import mmcv
 import numpy as np
+from functools import reduce
 from mmcv.utils import print_log
+from os import path as osp
 from torch.utils.data import Dataset
 
 from mmseg.core import mean_iou
@@ -231,8 +230,7 @@ class CustomDataset(Dataset):
         gt_seg_maps = []
         for img_info in self.img_infos:
             seg_map = osp.join(self.ann_dir, img_info['ann']['seg_map'])
-            gt_seg_map = mmcv.imread(
-                seg_map, flag='unchanged', backend='pillow')
+            gt_seg_map = mmcv.imread(seg_map, flag='unchanged', backend='cv2')
             # modify if custom classes
             if self.label_map is not None:
                 for old_id, new_id in self.label_map.items():

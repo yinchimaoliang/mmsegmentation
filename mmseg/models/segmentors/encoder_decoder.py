@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
@@ -262,13 +263,15 @@ class EncoderDecoder(BaseSegmentor):
 
     def simple_test(self, img, img_meta, rescale=True):
         """Simple test with single image."""
-        seg_logit = self.inference(img, img_meta, rescale)
-        seg_pred = seg_logit.argmax(dim=1).to(torch.uint8)
         if torch.onnx.is_in_onnx_export():
+            seg_logit = self.inference(img, img_meta, rescale)
+            seg_pred = seg_logit.argmax(dim=1).to(torch.uint8)
             # our inference backend only support 4D output
             seg_pred = seg_pred.unsqueeze(0)
             return seg_pred
-        seg_pred = seg_pred.cpu().numpy()
+        else:
+            seg_logit = self.inference(img, img_meta, rescale).cpu().numpy()
+            seg_pred = seg_logit.argmax(axis=1).astype(np.uint8)
         # unravel batch dim
         seg_pred = list(seg_pred)
         return seg_pred
