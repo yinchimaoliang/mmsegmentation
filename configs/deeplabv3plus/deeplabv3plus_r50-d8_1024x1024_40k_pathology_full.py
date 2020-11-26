@@ -7,4 +7,4 @@ _base_ = [
 model = dict(
     decode_head=dict(num_classes=5), auxiliary_head=dict(num_classes=5))
 
-evaluation = dict(interval=500, metric='mIoU')
+evaluation = dict(interval=500, metric='mDice')
