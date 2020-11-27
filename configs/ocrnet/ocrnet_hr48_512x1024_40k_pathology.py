@@ -44,4 +44,7 @@ model = dict(
 
 data = dict(samples_per_gpu=8, workers_per_gpu=8)
 
+# optimizer
+optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0005)
+
 evaluation = dict(interval=500, metric='mDice')
