@@ -92,6 +92,15 @@ class PathologyDataset(CustomDataset):
 
         img_infos = super().load_annotations(img_dir, img_suffix, ann_dir,
                                              seg_map_suffix, split)
+
+        new_img_infos = []
+        for img_info in img_infos:
+            seg_map = img_info['ann']['seg_map']
+            seg = mmcv.imread(osp.join(self.ann_dir, seg_map), 'grayscale')
+            if (not self.test_mode) and np.sum(seg == 4) > 0:
+                new_img_infos += [img_info] * 10
+
+        img_infos += new_img_infos
         if self.use_patch:
             patch_img_infos = []
             for img_info in img_infos:
@@ -157,7 +166,6 @@ class PathologyDataset(CustomDataset):
 
                 print(f'{filename} loaded.')
             return patch_img_infos
-
         return img_infos
 
     def prepare_train_img(self, idx):
