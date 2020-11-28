@@ -1,15 +1,17 @@
+import copy
 import torch
 from torch import nn as nn
-from torch.nn import functional as F
 
 from ..builder import LOSSES
 
 
 def _get_one_hot(label, N):
-    size = list(label.size())
-    label = label.view(-1)  # reshape 为向量
-    ones = torch.eye(N).type_as(label)
-    ones = ones.index_select(0, label)  # 用上面的办法转为换one hot
+    new_label = copy.deepcopy(label)
+    new_label[new_label == 255] = 0
+    size = list(new_label.size())
+    new_label = new_label.view(-1)  # reshape 为向量
+    ones = torch.eye(N).type_as(new_label)
+    ones = ones.index_select(0, new_label)  # 用上面的办法转为换one hot
     size.append(N)  # 把类别输目添到size的尾后，准备reshape回原来的尺寸
     return ones.view(*size).permute([0, 3, 1, 2])
 
@@ -57,7 +59,6 @@ class DiceLoss(nn.Module):
         if threshold is not None:
             pr = (pr > threshold).float()
 
-        pr = F.interpolate(pr, size=[gt.shape[2], gt.shape[3]])
         tp = torch.sum(gt * pr)
         fp = torch.sum(pr) - tp
         fn = torch.sum(gt) - tp
@@ -75,15 +76,15 @@ class DiceLoss(nn.Module):
                 reduction_override=None,
                 **kwargs):
         loss = 0
-        label[label == 255] = 0
         cls_num = cls_score.shape[1]
-        label = _get_one_hot(label, cls_num)
+        label_onehot = _get_one_hot(label, cls_num)
         if type(cls_score).__name__ == 'list':
             for output in cls_score:
-                loss += 1 - self.f_score(output, label, self.beta, self.eps,
-                                         self.threshold, self.activation)
+                loss += 1 - self.f_score(output, label_onehot, self.beta,
+                                         self.eps, self.threshold,
+                                         self.activation)
         else:
-            loss += 1 - self.f_score(cls_score, label, self.beta, self.eps,
-                                     self.threshold, self.activation)
+            loss += 1 - self.f_score(cls_score, label_onehot, self.beta,
+                                     self.eps, self.threshold, self.activation)
 
         return loss

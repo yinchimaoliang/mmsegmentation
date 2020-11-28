@@ -39,8 +39,7 @@ model = dict(
         num_classes=19,
         norm_cfg=norm_cfg,
         align_corners=False,
-        loss_decode=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=0.4)))
+        loss_decode=dict(type='DiceLoss')))
 # model training and testing settings
 train_cfg = dict()
 test_cfg = dict(mode='whole')
