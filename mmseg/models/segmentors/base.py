@@ -1,14 +1,13 @@
 import logging
-import warnings
-from abc import ABCMeta, abstractmethod
-from collections import OrderedDict
-
 import mmcv
 import numpy as np
 import torch
-import torch.distributed as dist
-import torch.nn as nn
+import warnings
+from abc import ABCMeta, abstractmethod
+from collections import OrderedDict
 from mmcv.runner import auto_fp16
+from torch import distributed as dist
+from torch import nn as nn
 
 
 class BaseSegmentor(nn.Module):
@@ -252,7 +251,7 @@ class BaseSegmentor(nn.Module):
         # convert to BGR
         color_seg = color_seg[..., ::-1]
 
-        img = img * 0.5 + color_seg * 0.5
+        img = img * 0.8 + color_seg * 0.2
         img = img.astype(np.uint8)
         # if out_file specified, do not show image in window
         if out_file is not None:

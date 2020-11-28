@@ -4,7 +4,7 @@ _base_ = [
 ]
 norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
-    pretrained=None,
+    pretrained='open-mmlab://msra/hrnetv2_w48',
     backbone=dict(
         norm_cfg=norm_cfg,
         extra=dict(
