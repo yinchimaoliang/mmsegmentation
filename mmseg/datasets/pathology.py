@@ -94,11 +94,6 @@ class PathologyDataset(CustomDataset):
                                              seg_map_suffix, split)
 
         new_img_infos = []
-        for img_info in img_infos:
-            seg_map = img_info['ann']['seg_map']
-            seg = mmcv.imread(osp.join(self.ann_dir, seg_map), 'grayscale')
-            if (not self.test_mode) and np.sum(seg == 4) > 0:
-                new_img_infos += [img_info] * 10
 
         img_infos += new_img_infos
         if self.use_patch:

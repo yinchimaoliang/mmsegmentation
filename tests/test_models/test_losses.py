@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 import torch
 
-from mmseg.models.losses import Accuracy, reduce_loss, weight_reduce_loss
+from mmseg.models.losses import (Accuracy, DiceLoss, reduce_loss,
+                                 weight_reduce_loss)
 
 
 def test_utils():
@@ -142,3 +143,13 @@ def test_accuracy():
     with pytest.raises(AssertionError):
         accuracy = Accuracy()
         accuracy(pred[:, :, None], true_label)
+
+
+def test_dice_loss():
+    pred = torch.tensor([[[[0.1, 0.1], [0.2, 0.2]], [[0.9, 0.9], [0.8, 0.8]]]])
+    gt = torch.tensor([[[1, 0], [0, 1]]])
+
+    dice_loss = DiceLoss()
+
+    loss = dice_loss(pred, gt)
+    assert torch.isclose(loss, torch.tensor(0.5698))

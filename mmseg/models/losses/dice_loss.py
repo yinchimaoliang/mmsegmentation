@@ -7,6 +7,7 @@ from ..builder import LOSSES
 
 def _get_one_hot(label, N):
     new_label = copy.deepcopy(label)
+    # Remove label == 255
     new_label[new_label == 255] = 0
     size = list(new_label.size())
     new_label = new_label.view(-1)  # reshape 为向量
@@ -19,8 +20,18 @@ def _get_one_hot(label, N):
 @LOSSES.register_module()
 class DiceLoss(nn.Module):
 
-    def __init__(self, beta=1, eps=1e-7, threshold=None, activation='sigmoid'):
+    def __init__(self,
+                 class_weight=None,
+                 loss_weight=1.0,
+                 reduction='mean',
+                 beta=1,
+                 eps=1e-7,
+                 threshold=None,
+                 activation='sigmoid'):
         super().__init__()
+        self.class_weight = class_weight
+        self.loss_weight = loss_weight
+        self.reduction = reduction
         self.beta = beta
         self.eps = eps
         self.threshold = threshold
@@ -59,9 +70,9 @@ class DiceLoss(nn.Module):
         if threshold is not None:
             pr = (pr > threshold).float()
 
-        tp = torch.sum(gt * pr)
-        fp = torch.sum(pr) - tp
-        fn = torch.sum(gt) - tp
+        tp = torch.sum(gt * pr, dim=[0, 2, 3])
+        fp = torch.sum(pr, dim=[0, 2, 3]) - tp
+        fn = torch.sum(gt, dim=[0, 2, 3]) - tp
 
         score = ((1 + beta**2) * tp + eps) / (
             (1 + beta**2) * tp + beta**2 * fn + fp + eps)
@@ -75,16 +86,16 @@ class DiceLoss(nn.Module):
                 avg_factor=None,
                 reduction_override=None,
                 **kwargs):
-        loss = 0
         cls_num = cls_score.shape[1]
         label_onehot = _get_one_hot(label, cls_num)
-        if type(cls_score).__name__ == 'list':
-            for output in cls_score:
-                loss += 1 - self.f_score(output, label_onehot, self.beta,
-                                         self.eps, self.threshold,
-                                         self.activation)
+        dice_coef = self.f_score(cls_score, label_onehot, self.beta, self.eps,
+                                 self.threshold, self.activation)
+        if self.class_weight is not None:
+            loss = (torch.ones_like(dice_coef) - dice_coef) * self.class_weight
         else:
-            loss += 1 - self.f_score(cls_score, label_onehot, self.beta,
-                                     self.eps, self.threshold, self.activation)
-
-        return loss
+            loss = (torch.ones_like(dice_coef) - dice_coef)
+        if self.reduction == 'sum':
+            loss = torch.sum(loss)
+        elif self.reduction == 'mean':
+            loss = torch.mean(loss)
+        return self.loss_weight * loss
