@@ -13,15 +13,23 @@ class CrossEntropyDiceLoss(nn.Module):
                  use_mask=False,
                  reduction='mean',
                  class_weight=None,
-                 loss_weight=1.0,
+                 ce_loss_weight=1.0,
+                 dice_loss_weight=0.4,
                  beta=1,
                  eps=1e-7,
                  threshold=None,
-                 activation='sigmoid'):
+                 activation='sigmoid',
+                 **kwargs):
+        super(CrossEntropyDiceLoss, self).__init__()
         self.ce_loss = CrossEntropyLoss(use_sigmoid, use_mask, reduction,
-                                        class_weight, loss_weight)
+                                        class_weight, ce_loss_weight)
 
-        self.dice_loss = DiceLoss(beta, eps, threshold, activation)
+        self.dice_loss = DiceLoss(
+            dice_loss_weight=dice_loss_weight,
+            beta=beta,
+            eps=eps,
+            threshold=threshold,
+            activation=activation)
 
     def forward(self,
                 cls_score,
