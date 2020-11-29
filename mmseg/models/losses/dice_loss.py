@@ -14,7 +14,7 @@ def _get_one_hot(label, N):
     ones = torch.eye(N).type_as(new_label)
     ones = ones.index_select(0, new_label)  # 用上面的办法转为换one hot
     size.append(N)  # 把类别输目添到size的尾后，准备reshape回原来的尺寸
-    return ones.view(*size).permute([0, 3, 1, 2])
+    return ones.view(*size).permute([0, 3, 1, 2]).float()
 
 
 @LOSSES.register_module()
@@ -92,9 +92,10 @@ class DiceLoss(nn.Module):
         dice_coef = self.f_score(cls_score, label_onehot, self.beta, self.eps,
                                  self.threshold, self.activation)
         if self.class_weight is not None:
-            loss = (torch.ones_like(dice_coef) - dice_coef) * self.class_weight
+            loss = (torch.ones_like(dice_coef) - dice_coef) * torch.tensor(
+                self.class_weight).type_as(dice_coef)
         else:
-            loss = (torch.ones_like(dice_coef) - dice_coef)
+            loss = torch.ones_like(dice_coef) - dice_coef
         if self.reduction == 'sum':
             loss = torch.sum(loss)
         elif self.reduction == 'mean':
