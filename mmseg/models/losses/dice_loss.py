@@ -27,7 +27,8 @@ class DiceLoss(nn.Module):
                  beta=1,
                  eps=1e-7,
                  threshold=None,
-                 activation='sigmoid'):
+                 activation='sigmoid',
+                 **kwargs):
         super().__init__()
         self.class_weight = class_weight
         self.loss_weight = loss_weight
