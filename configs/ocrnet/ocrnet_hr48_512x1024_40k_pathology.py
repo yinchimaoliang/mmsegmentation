@@ -25,7 +25,8 @@ model = dict(
             dropout_ratio=-1,
             num_classes=5,
             align_corners=False,
-            loss_decode=dict(type='DiceLoss')),
+            loss_decode=dict(
+                type='CrossEntropyLoss', use_sigmoid=False, loss_weight=0.4)),
         dict(
             type='OCRHead',
             in_channels=[48, 96, 192, 384],
