@@ -8,11 +8,10 @@ norm_cfg = dict(type='BN', requires_grad=True)
 
 model = dict(
     backbone=dict(norm_cfg=norm_cfg),
-    decode_head=dict(num_classes=5, norm_cfg=norm_cfg),
+    decode_head=dict(
+        num_classes=5, norm_cfg=norm_cfg, loss_decode=dict(type='DiceLoss')),
     auxiliary_head=dict(
-        num_classes=5,
-        norm_cfg=norm_cfg,
-        loss_decode=dict(type='CrossEntropyDiceLoss')))
+        num_classes=5, norm_cfg=norm_cfg, loss_decode=dict(type='DiceLoss')))
 
 optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0005)
 

@@ -37,8 +37,7 @@ model = dict(
             dropout_ratio=-1,
             num_classes=5,
             align_corners=False,
-            loss_decode=dict(
-                type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0))
+            loss_decode=dict(type='DiceLoss', loss_weight=0.4))
     ])
 
 data = dict(samples_per_gpu=8, workers_per_gpu=8)
