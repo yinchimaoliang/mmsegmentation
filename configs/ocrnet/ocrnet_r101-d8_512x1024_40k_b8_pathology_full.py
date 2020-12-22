@@ -33,3 +33,5 @@ model = dict(pretrained='open-mmlab://resnet101_v1c', backbone=dict(depth=101, n
                 type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0))
     ])
 
+evaluation = dict(interval=4000, metric='mDice')
+

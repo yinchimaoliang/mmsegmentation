@@ -42,7 +42,7 @@ class DiceLoss(nn.Module):
     def f_score(pr,
                 gt,
                 beta=1,
-                eps=1e-7,
+                eps=1e-3,
                 threshold=None,
                 activation='sigmoid'):
         """
@@ -71,9 +71,9 @@ class DiceLoss(nn.Module):
         if threshold is not None:
             pr = (pr > threshold).float()
 
-        tp = torch.sum(gt * pr, dim=[0, 2, 3])
-        fp = torch.sum(pr, dim=[0, 2, 3]) - tp
-        fn = torch.sum(gt, dim=[0, 2, 3]) - tp
+        tp = torch.mean(gt * pr, dim=[0, 2, 3])
+        fp = torch.mean(pr, dim=[0, 2, 3]) - tp
+        fn = torch.mean(gt, dim=[0, 2, 3]) - tp
 
         score = ((1 + beta**2) * tp + eps) / (
             (1 + beta**2) * tp + beta**2 * fn + fp + eps)
