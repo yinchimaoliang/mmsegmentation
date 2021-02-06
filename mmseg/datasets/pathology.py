@@ -56,7 +56,7 @@ class PathologyDataset(CustomDataset):
         self.result_dict = dict()
         super(PathologyDataset, self).__init__(**kwargs)
 
-    def get_gt_seg_maps(self):
+    def get_gt_seg_maps(self, efficient_test):
         """Get ground truth segmentation maps for evaluation."""
         if self.use_patch:
             gt_seg_maps = []
@@ -65,7 +65,7 @@ class PathologyDataset(CustomDataset):
                     osp.join(self.ann_dir, filename), 'grayscale')
                 gt_seg_maps.append(gt_seg_map)
         else:
-            gt_seg_maps = super().get_gt_seg_maps()
+            gt_seg_maps = super().get_gt_seg_maps(efficient_test)
 
         return gt_seg_maps
 
