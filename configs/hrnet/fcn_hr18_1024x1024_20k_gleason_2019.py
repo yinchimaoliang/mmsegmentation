@@ -12,6 +12,8 @@ model = dict(
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(
-            type='LovaszLoss', reduction='none')
-        )
+            type='SoftCrossEntropyLoss', use_mask=True, reduction='mean'),
+        ignore_index=255
+        ),
+
 )

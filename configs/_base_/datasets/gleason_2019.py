@@ -32,14 +32,15 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=4,
-    workers_per_gpu=4,
+    samples_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type='PathologyDataset',
         data_root=data_root,
         img_dir='train/images',
         img_suffix='.png',
-        ann_dir='train/annotations',
+        ann_dir='train/probability',
+        seg_map_suffix='.npy',
         pipeline=train_pipeline,
         use_patch=False,
         random_sampling=False,
