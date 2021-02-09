@@ -8,7 +8,7 @@ import numpy as np
 
 def parse_args():
     parser = argparse.ArgumentParser(description='show gt')
-    parser.add_argument('--label-dir', help='dir of labels', default='/home1/yinhaoli/data/gleason_2019/combined')
+    parser.add_argument('--label-dir', help='dir of labels', default='/home1/yinhaoli/data/gleason_2019')
     parser.add_argument('--image-dir', help='dir of labels', default='/home1/yinhaoli/data/gleason_2019/train_imgs')
     parser.add_argument('--target-dir', help='dir of labels', default='/home1/yinhaoli/data/gleason_2019')
     parser.add_argument(
@@ -20,29 +20,47 @@ def parse_args():
 def _generate_division(img_dir, ann_dir, target_dir, train_ratio):
     mmcv.mkdir_or_exist(osp.join(target_dir, 'train', 'images'))
     mmcv.mkdir_or_exist(osp.join(target_dir, 'train', 'annotations'))
+    mmcv.mkdir_or_exist(osp.join(target_dir, 'train', 'probability'))
     mmcv.mkdir_or_exist(osp.join(target_dir, 'valid', 'images'))
     mmcv.mkdir_or_exist(osp.join(target_dir, 'valid', 'annotations'))
-    mmcv.mkdir_or_exist(osp.join(target_dir, 'trainval', 'images'))
-    mmcv.mkdir_or_exist(osp.join(target_dir, 'trainval', 'annotations'))
+    mmcv.mkdir_or_exist(osp.join(target_dir, 'valid', 'probability'))
+    # mmcv.mkdir_or_exist(osp.join(target_dir, 'trainval', 'images'))
+    # mmcv.mkdir_or_exist(osp.join(target_dir, 'trainval', 'annotations'))
     names = os.listdir(img_dir)
-    np.random.shuffle(names)
-    train_names = names[:int(len(names) * train_ratio)]
-    val_names = names[int(len(names) * train_ratio):]
-    for train_name in train_names:
-        print(train_name)
-        img = mmcv.imread(osp.join(img_dir, train_name))
-        mmcv.imwrite(img, osp.join(target_dir, 'train', 'images', train_name.split('.')[0]+'.png'))
-        shutil.copyfile(osp.join(ann_dir, train_name.split('.')[0]+'.png'), osp.join(target_dir, 'train', 'annotations', train_name.split('.')[0]+'.png'))
-    for val_name in val_names:
-        print(val_name)
-        img = mmcv.imread(osp.join(img_dir, val_name))
-        mmcv.imwrite(img, osp.join(target_dir, 'valid', 'images', val_name.split('.')[0]+'.png'))
-        shutil.copyfile(osp.join(ann_dir, val_name.split('.')[0]+'.png'), osp.join(target_dir, 'valid', 'annotations', val_name.split('.')[0]+'.png'))
     for name in names:
-        print(name)
-        img = mmcv.imread(osp.join(img_dir, name))
-        mmcv.imwrite(img, osp.join(target_dir, 'trainval', 'images', name.split('.')[0]+'.png'))
-        shutil.copyfile(osp.join(ann_dir, name.split('.')[0]+'.png'), osp.join(target_dir, 'trainval', 'annotations', name.split('.')[0]+'.png'))
+        if osp.exists(osp.join(ann_dir, 'Maps1_T', name.split('.')[0] + '_classimg_nonconvex.png')) and osp.exists(osp.join(ann_dir, 'Maps2_T', name.split('.')[0] + '_classimg_nonconvex.png')) and osp.exists(osp.join(ann_dir, 'Maps3_T', name.split('.')[0] + '_classimg_nonconvex.png')) and osp.exists(osp.join(ann_dir, 'Maps4_T', name.split('.')[0] + '_classimg_nonconvex.png')) and osp.exists(osp.join(ann_dir, 'Maps5_T', name.split('.')[0] + '_classimg_nonconvex.png')) and osp.exists(osp.join(ann_dir, 'Maps6_T', name.split('.')[0] + '_classimg_nonconvex.png')):
+            img = mmcv.imread(osp.join(img_dir, name))
+            mmcv.imwrite(img, osp.join(target_dir, 'valid', 'images', name.split('.')[0]+'.png'))
+            shutil.copyfile(osp.join(osp.join(ann_dir, 'combined', name.split('.')[0]+'.png')), osp.join(target_dir, 'valid', 'annotations', name.split('.')[0]+'.png'))
+            shutil.copyfile(osp.join(osp.join(ann_dir, 'probability', name.split('.')[0]+'.npy')), osp.join(target_dir, 'valid', 'probability', name.split('.')[0]+'.npy'))
+            print(f'valid {name}')
+        else:
+            img = mmcv.imread(osp.join(img_dir, name))
+            mmcv.imwrite(img, osp.join(target_dir, 'train', 'images', name.split('.')[0] + '.png'))
+            shutil.copyfile(osp.join(osp.join(ann_dir, 'combined', name.split('.')[0] + '.png')),
+                            osp.join(target_dir, 'train', 'annotations', name.split('.')[0] + '.png'))
+            shutil.copyfile(osp.join(osp.join(ann_dir, 'probability', name.split('.')[0] + '.npy')),
+                            osp.join(target_dir, 'train', 'probability', name.split('.')[0] + '.npy'))
+            print(f'train {name}')
+
+    # np.random.shuffle(names)
+    # train_names = names[:int(len(names) * train_ratio)]
+    # val_names = names[int(len(names) * train_ratio):]
+    # for train_name in train_names:
+    #     print(train_name)
+    #     img = mmcv.imread(osp.join(img_dir, train_name))
+    #     mmcv.imwrite(img, osp.join(target_dir, 'train', 'images', train_name.split('.')[0]+'.png'))
+    #     shutil.copyfile(osp.join(ann_dir, train_name.split('.')[0]+'.png'), osp.join(target_dir, 'train', 'annotations', train_name.split('.')[0]+'.png'))
+    # for val_name in val_names:
+    #     print(val_name)
+    #     img = mmcv.imread(osp.join(img_dir, val_name))
+    #     mmcv.imwrite(img, osp.join(target_dir, 'valid', 'images', val_name.split('.')[0]+'.png'))
+    #     shutil.copyfile(osp.join(ann_dir, val_name.split('.')[0]+'.png'), osp.join(target_dir, 'valid', 'annotations', val_name.split('.')[0]+'.png'))
+    # for name in names:
+    #     print(name)
+    #     img = mmcv.imread(osp.join(img_dir, name))
+    #     mmcv.imwrite(img, osp.join(target_dir, 'trainval', 'images', name.split('.')[0]+'.png'))
+    #     shutil.copyfile(osp.join(ann_dir, name.split('.')[0]+'.png'), osp.join(target_dir, 'trainval', 'annotations', name.split('.')[0]+'.png'))
 
 def main():
     args = parse_args()
