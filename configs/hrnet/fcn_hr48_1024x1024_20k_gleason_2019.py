@@ -12,3 +12,7 @@ model = dict(
         in_channels=[48, 96, 192, 384], channels=sum([48, 96, 192, 384]),
         num_classes=4,
         norm_cfg=norm_cfg))
+
+runner = dict(type='IterBasedRunner', max_iters=10000)
+checkpoint_config = dict(by_epoch=False, interval=1000)
+evaluation = dict(interval=1000, metric='mIoU')
