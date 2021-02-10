@@ -83,12 +83,9 @@ class BalanceDataset(object):
                 if np.count_nonzero(ann==j) > 0:
                     infos_per_class[j].append(i)
         max_num = max([len(infos_per_class[i]) for i in range(len(self.CLASSES))])
-        for infos in infos_per_class:
-            self.new_inds += infos
-            if len(infos) == max_num:
-                continue
-            self.new_inds += np.random.choice(infos, max_num - len(infos)).tolist()
-        print(self.new_inds)
+        for i in range(max_num):
+            for infos in infos_per_class:
+                self.new_inds.append(infos[i % len(infos)])
 
 
     def __getitem__(self, idx):
