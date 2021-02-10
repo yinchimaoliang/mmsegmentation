@@ -133,7 +133,7 @@ def mask_cross_entropy(pred,
     pred_slice = pred[inds, label].squeeze(1)
 
     valid_mask = (target >= 0) & (target != ignore_index)
-    loss = (F.binary_cross_entropy_with_logits(pred_slice, target.float(), pos_weight=class_weight, reduction='none') * valid_mask).mean()
+    loss = (F.binary_cross_entropy_with_logits(pred_slice, target.float(), pos_weight=class_weight, reduction='none') * valid_mask)
     return loss
     # do the reduction for the weighted loss
 
