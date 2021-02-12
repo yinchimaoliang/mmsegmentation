@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 import torch
 import torch.nn as nn
+import cv2 as cv
 from mmcv.cnn import normal_init
 from mmcv.runner import auto_fp16, force_fp32
 
@@ -184,7 +185,7 @@ class BaseDecodeHead(nn.Module, metaclass=ABCMeta):
             dict[str, Tensor]: a dictionary of loss components
         """
         seg_logits = self.forward(inputs)
-        losses = self.losses(seg_logits, gt_semantic_seg)
+        losses = self.losses(img, seg_logits, gt_semantic_seg)
         return losses
 
     def forward_test(self, inputs, img_metas, test_cfg):
@@ -212,7 +213,7 @@ class BaseDecodeHead(nn.Module, metaclass=ABCMeta):
         return output
 
     @force_fp32(apply_to=('seg_logit', ))
-    def losses(self, seg_logit, seg_label):
+    def losses(self, img, seg_logit, seg_label):
         """Compute segmentation loss."""
         loss = dict()
         seg_logit = resize(
@@ -226,6 +227,7 @@ class BaseDecodeHead(nn.Module, metaclass=ABCMeta):
             seg_weight = None
         seg_label = seg_label.squeeze(1)
         loss['loss_seg'] = self.loss_decode(
+            img,
             seg_logit,
             seg_label,
             weight=seg_weight,
