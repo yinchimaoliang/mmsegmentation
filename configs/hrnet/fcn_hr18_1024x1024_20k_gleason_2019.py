@@ -12,7 +12,7 @@ model = dict(
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0,gauss_scale=5, gauss_kernel=9, gauss_sigma=9
+            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0
         )
     )
 )

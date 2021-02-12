@@ -5,7 +5,6 @@ import scipy.stats as st
 import torch.nn as nn
 import torch.nn.functional as F
 
-from scipy import signal
 from ..builder import LOSSES
 from .utils import weight_reduce_loss
 
