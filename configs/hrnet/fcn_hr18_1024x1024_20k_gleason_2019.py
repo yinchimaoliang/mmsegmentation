@@ -12,6 +12,8 @@ model = dict(
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(
-            type='DiceLoss')
+            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0,
+                 class_weight=[0.1, 0.1, 1, 10]
         )
+    )
 )

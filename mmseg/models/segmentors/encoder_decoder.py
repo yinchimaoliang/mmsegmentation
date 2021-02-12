@@ -93,11 +93,11 @@ class EncoderDecoder(BaseSegmentor):
             align_corners=self.align_corners)
         return out
 
-    def _decode_head_forward_train(self, x, img_metas, gt_semantic_seg):
+    def _decode_head_forward_train(self, img, x, img_metas, gt_semantic_seg):
         """Run forward function and calculate loss for decode head in
         training."""
         losses = dict()
-        loss_decode = self.decode_head.forward_train(x, img_metas,
+        loss_decode = self.decode_head.forward_train(img, x, img_metas,
                                                      gt_semantic_seg,
                                                      self.train_cfg)
 
@@ -154,7 +154,7 @@ class EncoderDecoder(BaseSegmentor):
 
         losses = dict()
 
-        loss_decode = self._decode_head_forward_train(x, img_metas,
+        loss_decode = self._decode_head_forward_train(img, x, img_metas,
                                                       gt_semantic_seg)
         losses.update(loss_decode)
 
