@@ -1,8 +1,10 @@
 import copy
 import torch
 from torch import nn as nn
+import torch.nn.functional as F
 
 from ..builder import LOSSES
+from .utils import gkern
 
 
 def _get_one_hot(label, N):
@@ -28,6 +30,9 @@ class DiceLoss(nn.Module):
                  eps=1e-7,
                  threshold=None,
                  activation='sigmoid',
+                 gauss_scale=None,
+                 gauss_kernel=None,
+                 gauss_sigma=None,
                  **kwargs):
         super().__init__()
         self.class_weight = class_weight
@@ -37,15 +42,26 @@ class DiceLoss(nn.Module):
         self.eps = eps
         self.threshold = threshold
         self.activation = activation
+        if gauss_scale is not None:
+            assert gauss_kernel is not None
+            assert gauss_sigma is not None
+        self.gauss_scale = gauss_scale
+        self.gauss_kernel = gauss_kernel
+        self.gauss_sigma = gauss_sigma
 
     @staticmethod
     def f_score(pr,
                 gt,
+                weight,
                 beta=1,
                 eps=1e-7,
                 threshold=None,
                 activation='sigmoid',
-                ignore_index=255):
+                ignore_index=255,
+                gauss_scale=None,
+                gauss_kernel=None,
+                gauss_sigma=None
+                ):
         """
         Args:
             pr (torch.Tensor): A list of predicted elements
@@ -73,9 +89,9 @@ class DiceLoss(nn.Module):
             pr = (pr > threshold).float()
 
         # gt[gt==255] = 0
-        tp = torch.sum(gt * pr, dim=[0, 2, 3])
-        fp = torch.sum(pr*(1-gt), dim=[0, 2, 3])
-        fn = torch.sum(gt*(1-pr), dim=[0, 2, 3])
+        tp = torch.sum(gt * pr * weight, dim=[2, 3])
+        fp = torch.sum(pr*(1-gt) * weight, dim=[2, 3])
+        fn = torch.sum(gt*(1-pr) * weight, dim=[2, 3])
 
         score = ((1 + beta**2) * tp + eps) / (
             (1 + beta**2) * tp + beta**2 * fn + fp + eps)
@@ -83,6 +99,7 @@ class DiceLoss(nn.Module):
         return score
 
     def forward(self,
+                img,
                 logits,
                 labels,
                 weight=None,
@@ -92,13 +109,18 @@ class DiceLoss(nn.Module):
                 **kwargs):
         cls_num = logits.shape[1]
         label_onehot = _get_one_hot(labels, cls_num)
-        dice_coef = self.f_score(logits, label_onehot, self.beta, self.eps,
-                                 self.threshold, self.activation)
+        weight = torch.ones_like(logits)
+        if self.gauss_scale is not None:
+            kernel = gkern(self.gauss_kernel, self.gauss_sigma)
+            kernel = torch.from_numpy(kernel).to(img).expand(1,3,self.gauss_kernel,self.gauss_kernel)
+            img_blurred = F.conv2d(img,nn.Parameter(kernel), padding=(self.gauss_kernel-1)//2)
+            weight = 1 + self.gauss_scale * torch.abs(img_blurred - torch.mean(img, dim=1, keepdim=True))
+            weight = weight.repeat(1, cls_num, 1, 1)
         if self.class_weight is not None:
-            loss = (torch.ones_like(dice_coef) - dice_coef) * torch.tensor(
-                self.class_weight).type_as(dice_coef)
-        else:
-            loss = torch.ones_like(dice_coef) - dice_coef
+            weight = weight * torch.tensor(self.class_weight).reshape(1, cls_num, 1, 1).expand_as(weight).to(weight)
+        dice_coef = self.f_score(logits, label_onehot, weight, self.beta, self.eps,
+                                 self.threshold, self.activation)
+        loss = torch.ones_like(dice_coef) - dice_coef
         if self.reduction == 'sum':
             loss = torch.sum(loss)
         elif self.reduction == 'mean':

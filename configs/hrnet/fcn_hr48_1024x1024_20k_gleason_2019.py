@@ -13,8 +13,7 @@ model = dict(
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0,
-            class_weight=[0.1, 1, 1, 10], gauss_scale=5, gauss_kernel=9, gauss_sigma=9
+            type='DiceLoss', class_weight=[0.1, 1, 1, 10], gauss_scale=5, gauss_kernel=9, gauss_sigma=9
         )
 ))
 optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0005)

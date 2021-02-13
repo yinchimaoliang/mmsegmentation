@@ -1,21 +1,11 @@
 import torch
-import cv2 as cv
 import numpy as np
 import scipy.stats as st
 import torch.nn as nn
 import torch.nn.functional as F
 
 from ..builder import LOSSES
-from .utils import weight_reduce_loss
-
-
-def _gkern(kernlen=21, nsig=3):
-    """Returns a 2D Gaussian kernel."""
-
-    x = np.linspace(-nsig, nsig, kernlen+1)
-    kern1d = np.diff(st.norm.cdf(x))
-    kern2d = np.outer(kern1d, kern1d)
-    return kern2d/kern2d.sum()
+from .utils import weight_reduce_loss, gkern
 
 
 def cross_entropy(pred,
@@ -179,12 +169,12 @@ class CrossEntropyLoss(nn.Module):
         self.reduction = reduction
         self.loss_weight = loss_weight
         self.class_weight = class_weight
+        if gauss_scale is not None:
+            assert gauss_kernel is not None
+            assert gauss_sigma is not None
         self.gauss_scale = gauss_scale
         self.gauss_kernel = gauss_kernel
         self.gauss_sigma = gauss_sigma
-        if self.gauss_scale is not None:
-            assert gauss_kernel is not None
-            assert gauss_sigma is not None
         if self.use_sigmoid:
             self.cls_criterion = binary_cross_entropy
         elif self.use_mask:
@@ -210,7 +200,7 @@ class CrossEntropyLoss(nn.Module):
             class_weight = None
 
         if self.gauss_scale is not None:
-            kernel = _gkern(self.gauss_kernel, self.gauss_sigma)
+            kernel = gkern(self.gauss_kernel, self.gauss_sigma)
             kernel = torch.from_numpy(kernel).to(img).expand(1,3,self.gauss_kernel,self.gauss_kernel)
             img_blurred = F.conv2d(img,nn.Parameter(kernel), padding=(self.gauss_kernel-1)//2)
             weight = 1 + self.gauss_scale * torch.abs(img_blurred - torch.mean(img, dim=1, keepdim=True))
