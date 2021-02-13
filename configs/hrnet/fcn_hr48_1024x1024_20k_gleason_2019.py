@@ -16,7 +16,7 @@ model = dict(
             type='DiceLoss', class_weight=[1.63, 6.39, 4.45, 188]
         )
 ))
-optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0005)
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 runner = dict(type='IterBasedRunner', max_iters=10000)
 checkpoint_config = dict(by_epoch=False, interval=1000)
 evaluation = dict(interval=1000, metric='mIoU')
