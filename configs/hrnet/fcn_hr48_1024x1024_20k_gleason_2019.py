@@ -13,7 +13,7 @@ model = dict(
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(
-            type='DiceLoss'
+            type='DiceLoss', class_weight=[1.63, 6.39, 4.45, 188]
         )
 ))
 optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0005)
