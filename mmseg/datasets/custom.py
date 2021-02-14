@@ -102,7 +102,11 @@ class CustomDataset(Dataset):
         if self.data_root is not None:
             if not osp.isabs(self.img_dir):
                 self.img_dir = osp.join(self.data_root, self.img_dir)
-            if not (self.ann_dir is None or osp.isabs(self.ann_dir)):
+            if isinstance(self.ann_dir, list):
+                for i, ann_dir in enumerate(self.ann_dir):
+                    if not (ann_dir is None or osp.isabs(ann_dir)):
+                        self.ann_dir[i] = osp.join(self.data_root, ann_dir)
+            elif not (self.ann_dir is None or osp.isabs(self.ann_dir)):
                 self.ann_dir = osp.join(self.data_root, self.ann_dir)
             if not (self.split is None or osp.isabs(self.split)):
                 self.split = osp.join(self.data_root, self.split)

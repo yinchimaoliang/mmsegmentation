@@ -124,14 +124,30 @@ class LoadAnnotations(object):
             self.file_client = mmcv.FileClient(**self.file_client_args)
 
         if results.get('seg_prefix', None) is not None:
-            filename = osp.join(results['seg_prefix'],
+            seg_prefix = results.get('seg_prefix', None)
+            gt_semantic_seg = []
+            if isinstance(seg_prefix, list):
+                for prefix in seg_prefix:
+                    filename = osp.join(prefix,
                                 results['ann_info']['seg_map'])
+                    img_bytes = self.file_client.get(filename)
+                    gt_semantic_seg.append(mmcv.imfrombytes(
+                        img_bytes, flag='unchanged',
+                        backend=self.imdecode_backend).squeeze().astype(np.uint8))
+                gt_semantic_seg = np.stack(gt_semantic_seg).transpose(1, 2, 0)
+            else:
+                filename = osp.join(results['seg_prefix'],
+                                results['ann_info']['seg_map'])
+                img_bytes = self.file_client.get(filename)
+                gt_semantic_seg = mmcv.imfrombytes(
+                    img_bytes, flag='unchanged',
+                    backend=self.imdecode_backend).squeeze().astype(np.uint8)
         else:
             filename = results['ann_info']['seg_map']
-        img_bytes = self.file_client.get(filename)
-        gt_semantic_seg = mmcv.imfrombytes(
-            img_bytes, flag='unchanged',
-            backend=self.imdecode_backend).squeeze().astype(np.uint8)
+            img_bytes = self.file_client.get(filename)
+            gt_semantic_seg = mmcv.imfrombytes(
+                img_bytes, flag='unchanged',
+                backend=self.imdecode_backend).squeeze().astype(np.uint8)
         # modify if custom classes
         if results.get('label_map', None) is not None:
             for old_id, new_id in results['label_map'].items():

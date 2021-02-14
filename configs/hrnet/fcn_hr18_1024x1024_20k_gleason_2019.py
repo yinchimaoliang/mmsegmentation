@@ -9,6 +9,8 @@ model = dict(
         norm_cfg=norm_cfg,
         ),
     decode_head=dict(
+
+        type='FCNMulLabelHead',
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(
