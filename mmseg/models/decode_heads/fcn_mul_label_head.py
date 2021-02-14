@@ -20,7 +20,7 @@ class FCNMulLabelHead(FCNHead):
     """
 
     def __init__(self,
-                 label_ind=[1,2,3],
+                 label_ind=None,
                  **kwargs):
         super(FCNMulLabelHead, self).__init__(**kwargs)
         self.label_ind = label_ind
@@ -53,15 +53,18 @@ class FCNMulLabelHead(FCNHead):
         seg_logits = self.forward(inputs)
         loss_segs = []
         acc_segs = []
-        for i in self.label_ind:
-            losses = self.losses(img, seg_logits, gt_semantic_seg[..., i].squeeze(-1))
-            loss_segs.append(losses['loss_seg'])
-            acc_segs.append(losses['acc_seg'])
-        loss_segs = torch.stack(loss_segs)
-        acc_segs = torch.stack(acc_segs).squeeze(1)
-        if weight is None:
-            weight = torch.ones_like(loss_segs)
-        loss_segs *= weight
-        acc_segs *= weight
-        losses = dict(loss_seg=loss_segs.mean(), acc_seg=[acc_segs.mean()])
+        if self.label_ind is not None:
+            for i in self.label_ind:
+                losses = self.losses(img, seg_logits, gt_semantic_seg[..., i].squeeze(-1))
+                loss_segs.append(losses['loss_seg'])
+                acc_segs.append(losses['acc_seg'])
+            loss_segs = torch.stack(loss_segs)
+            acc_segs = torch.stack(acc_segs).squeeze(1)
+            if weight is None:
+                weight = torch.ones_like(loss_segs)
+            loss_segs *= weight
+            acc_segs *= weight
+            losses = dict(loss_seg=loss_segs.mean(), acc_seg=[acc_segs.mean()])
+        else:
+            losses = self.losses(img, seg_logits, gt_semantic_seg)
         return losses
