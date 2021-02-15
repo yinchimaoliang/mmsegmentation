@@ -127,7 +127,7 @@ def mask_cross_entropy(pred,
     Returns:
         torch.Tensor: The calculated loss
     """
-    assert ignore_index is None, 'BCE loss does not support ignore_index'
+    # assert ignore_index is None, 'BCE loss does not support ignore_index'
     # TODO: handle these two reserved arguments
     assert reduction == 'mean' and avg_factor is None
     num_rois = pred.size()[0]
@@ -200,7 +200,7 @@ class CrossEntropyLoss(nn.Module):
             class_weight = None
 
         if weight is None:
-            weight = torch.ones_like(cls_score)
+            weight = torch.ones_like(label)
 
         if self.gauss_scale is not None:
             kernel = gkern(self.gauss_kernel, self.gauss_sigma)
