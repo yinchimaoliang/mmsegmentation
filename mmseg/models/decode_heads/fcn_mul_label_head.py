@@ -33,10 +33,11 @@ class FCNMulLabelHead(FCNHead):
                  mul_label_ind=None,
                  final_label_ind=None,
                  pretrained=None,
-                 loss_weight=dict(
+                 loss_single=dict(
                      type='CrossEntropyLoss',
                      use_sigmoid=False,
                      loss_weight=1.0),
+                 sigma=5,
                  **kwargs):
         super(FCNMulLabelHead, self).__init__(**kwargs)
         self.label_ind = mul_label_ind
@@ -46,7 +47,8 @@ class FCNMulLabelHead(FCNHead):
         self.wei_net_fc = nn.Linear(wei_net_in_channels, wei_net_out_channels)
         self.wei_net_softmax = nn.Softmax(dim=1)
         self.wei_net_backbone.init_weights(pretrained)
-        self.loss_weight = build_loss(loss_weight)
+        self.loss_single = build_loss(loss_single)
+        self.sigma = sigma
 
     def forward(self, inputs):
         """Forward function."""
@@ -81,8 +83,6 @@ class FCNMulLabelHead(FCNHead):
     @force_fp32(apply_to=('seg_logit',))
     def losses(self, img, seg_logit, seg_label, mul_label_weight):
         """Compute segmentation loss."""
-        bs = seg_logit.shape[0]
-        num_class = seg_logit.shape[1]
         loss = dict()
         seg_logit = resize(
             input=seg_logit,
@@ -94,18 +94,15 @@ class FCNMulLabelHead(FCNHead):
         else:
             seg_weight = None
         seg_label = seg_label.squeeze(1)
-        # new_label = torch.zeros_like(seg_logit)
-        # for i, ind in enumerate(self.label_ind):
-        #     label_onehot = get_one_hot(seg_label[..., ind], num_class)
-        #     weight = mul_label_weight[..., i].reshape(bs, 1, 1, 1).expand_as(new_label)
-        #     new_label += weight * label_onehot
-        loss['loss_seg'] = self.loss_decode(
+        loss_single_label = self.loss_single(img, seg_logit, seg_label[..., self.final_label_ind]
+            ,ignore_index=self.ignore_index)
+        loss_mul_label = self.loss_decode(
             img,
             seg_logit,
             seg_label[..., self.label_ind].clone(),
             weight=seg_weight,
             ignore_index=self.ignore_index,
-            mul_label_weight=mul_label_weight) + self.loss_decode(img, seg_logit, seg_label[..., self.final_label_ind]
-            ,ignore_index=self.ignore_index)
+            mul_label_weight=mul_label_weight)
+        loss['loss_seg'] = (1 / (self.sigma * loss_single_label)) * loss_mul_label + loss_single_label
         loss['acc_seg'] = accuracy(seg_logit, seg_label[..., self.final_label_ind])
         return loss
