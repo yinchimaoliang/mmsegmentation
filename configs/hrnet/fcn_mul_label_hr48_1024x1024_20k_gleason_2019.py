@@ -24,6 +24,7 @@ model = dict(
         wei_net_out_channels=3,
         mul_label_ind=[1, 2, 3],
         final_label_ind=0,
+        pretrained='torchvision://resnet18',
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(

@@ -5,18 +5,7 @@ import torch.nn.functional as F
 
 from ..builder import LOSSES
 from .utils import gkern
-
-
-def _get_one_hot(label, N):
-    new_label = copy.deepcopy(label)
-    # Remove label == 255
-    new_label[new_label == 255] = 0
-    size = list(new_label.size())
-    new_label = new_label.view(-1)  # reshape 为向量
-    ones = torch.eye(N).type_as(new_label)
-    ones = ones.index_select(0, new_label)  # 用上面的办法转为换one hot
-    size.append(N)  # 把类别输目添到size的尾后，准备reshape回原来的尺寸
-    return ones.view(*size).permute([0, 3, 1, 2]).float()
+from mmseg.models.utils import get_one_hot
 
 
 @LOSSES.register_module()
@@ -113,7 +102,7 @@ class DiceLoss(nn.Module):
             labels = labels.unsqueeze(dim=3)
         losses = []
         for i in range(labels.shape[3]):
-            label_onehot = _get_one_hot(labels[..., i], cls_num)
+            label_onehot = get_one_hot(labels[..., i], cls_num)
             if weight is None:
                 weight = torch.ones_like(logits)
             if self.gauss_scale is not None:
