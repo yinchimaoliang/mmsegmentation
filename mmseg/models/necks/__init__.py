@@ -1,3 +1,4 @@
 from .fpn import FPN
+from .gap import GlobalAveragePooling
 
-__all__ = ['FPN']
+__all__ = ['FPN', 'GlobalAveragePooling']

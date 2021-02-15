@@ -199,6 +199,9 @@ class CrossEntropyLoss(nn.Module):
         else:
             class_weight = None
 
+        if weight is None:
+            weight = torch.ones_like(cls_score)
+
         if self.gauss_scale is not None:
             kernel = gkern(self.gauss_kernel, self.gauss_sigma)
             kernel = torch.from_numpy(kernel).to(img).expand(1,3,self.gauss_kernel,self.gauss_kernel)

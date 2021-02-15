@@ -1,9 +1,12 @@
 import torch
 import torch.nn as nn
-from mmcv.cnn import ConvModule
 
-from ..builder import HEADS
+from ..builder import HEADS, build_backbone, build_neck
 from .fcn_head import FCNHead
+
+from mmcv.runner import force_fp32
+from mmseg.ops import resize
+from ..losses import accuracy
 
 
 @HEADS.register_module()
@@ -20,10 +23,20 @@ class FCNMulLabelHead(FCNHead):
     """
 
     def __init__(self,
-                 label_ind=None,
+                 wei_net_backbone,
+                 wei_net_neck,
+                 wei_net_in_channels,
+                 wei_net_out_channels,
+                 mul_label_ind=None,
+                 final_label_ind=None,
                  **kwargs):
         super(FCNMulLabelHead, self).__init__(**kwargs)
-        self.label_ind = label_ind
+        self.label_ind = mul_label_ind
+        self.final_label_ind = final_label_ind
+        self.wei_net_backbone = build_backbone(wei_net_backbone)
+        self.wei_net_neck = build_neck(wei_net_neck)
+        self.wei_net_fc = nn.Linear(wei_net_in_channels, wei_net_out_channels)
+        self.wei_net_softmax = nn.Softmax(dim=1)
 
     def forward(self, inputs):
         """Forward function."""
@@ -51,20 +64,30 @@ class FCNMulLabelHead(FCNHead):
             dict[str, Tensor]: a dictionary of loss components
         """
         seg_logits = self.forward(inputs)
-        loss_segs = []
-        acc_segs = []
-        if self.label_ind is not None:
-            for i in self.label_ind:
-                losses = self.losses(img, seg_logits, gt_semantic_seg[..., i].squeeze(-1))
-                loss_segs.append(losses['loss_seg'])
-                acc_segs.append(losses['acc_seg'])
-            loss_segs = torch.stack(loss_segs)
-            acc_segs = torch.stack(acc_segs).squeeze(1)
-            if weight is None:
-                weight = torch.ones_like(loss_segs)
-            loss_segs *= weight
-            acc_segs *= weight
-            losses = dict(loss_seg=loss_segs.mean(), acc_seg=[acc_segs.mean()])
-        else:
-            losses = self.losses(img, seg_logits, gt_semantic_seg)
+        weight = self.wei_net_softmax(self.wei_net_fc(self.wei_net_neck(self.wei_net_backbone(img)[-1])))
+        losses = self.losses(img, seg_logits, gt_semantic_seg[..., self.label_ind], weight)
         return losses
+
+    @force_fp32(apply_to=('seg_logit',))
+    def losses(self, img, seg_logit, seg_label, mul_label_weight):
+        """Compute segmentation loss."""
+        loss = dict()
+        seg_logit = resize(
+            input=seg_logit,
+            size=seg_label.shape[2:4],
+            mode='bilinear',
+            align_corners=self.align_corners)
+        if self.sampler is not None:
+            seg_weight = self.sampler.sample(seg_logit, seg_label)
+        else:
+            seg_weight = None
+        seg_label = seg_label.squeeze(1)
+        loss['loss_seg'] = self.loss_decode(
+            img,
+            seg_logit,
+            seg_label,
+            weight=seg_weight,
+            ignore_index=self.ignore_index,
+            mul_label_weight=mul_label_weight)
+        loss['acc_seg'] = accuracy(seg_logit, seg_label[..., self.final_label_ind])
+        return loss

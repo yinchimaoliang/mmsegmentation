@@ -10,7 +10,7 @@ model = dict(
         ),
     decode_head=dict(
 
-        type='FCNMulLabelHead',
+        type='FCNHead',
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(

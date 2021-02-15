@@ -103,26 +103,38 @@ class DiceLoss(nn.Module):
                 logits,
                 labels,
                 weight=None,
+                mul_label_weight=None,
                 avg_factor=None,
                 reduction_override=None,
                 ignore_index=255,
                 **kwargs):
         cls_num = logits.shape[1]
-        label_onehot = _get_one_hot(labels, cls_num)
-        weight = torch.ones_like(logits)
-        if self.gauss_scale is not None:
-            kernel = gkern(self.gauss_kernel, self.gauss_sigma)
-            kernel = torch.from_numpy(kernel).to(img).expand(1,3,self.gauss_kernel,self.gauss_kernel)
-            img_blurred = F.conv2d(img,nn.Parameter(kernel), padding=(self.gauss_kernel-1)//2)
-            weight = 1 + self.gauss_scale * torch.abs(img_blurred - torch.mean(img, dim=1, keepdim=True))
-            weight = weight.repeat(1, cls_num, 1, 1)
-        if self.class_weight is not None:
-            weight = weight * torch.tensor(self.class_weight).reshape(1, cls_num, 1, 1).expand_as(weight).to(weight)
-        dice_coef = self.f_score(logits, label_onehot, weight, self.beta, self.eps,
-                                 self.threshold, self.activation)
-        loss = torch.ones_like(dice_coef) - dice_coef
-        if self.reduction == 'sum':
-            loss = torch.sum(loss)
-        elif self.reduction == 'mean':
-            loss = torch.mean(loss)
-        return self.loss_weight * loss
+        if labels.ndim == 3:
+            labels.unsqueeze(dim=3)
+        losses = []
+        for i in range(labels.shape[3]):
+            label_onehot = _get_one_hot(labels[..., i], cls_num)
+            if weight is None:
+                weight = torch.ones_like(logits)
+            if self.gauss_scale is not None:
+                kernel = gkern(self.gauss_kernel, self.gauss_sigma)
+                kernel = torch.from_numpy(kernel).to(img).expand(1,3,self.gauss_kernel,self.gauss_kernel)
+                img_blurred = F.conv2d(img,nn.Parameter(kernel), padding=(self.gauss_kernel-1)//2)
+                weight = 1 + self.gauss_scale * torch.abs(img_blurred - torch.mean(img, dim=1, keepdim=True))
+                weight = weight.repeat(1, cls_num, 1, 1)
+            if self.class_weight is not None:
+                weight = weight * torch.tensor(self.class_weight).reshape(1, cls_num, 1, 1).expand_as(weight).to(weight)
+            dice_coef = self.f_score(logits, label_onehot, weight, self.beta, self.eps,
+                                     self.threshold, self.activation)
+            loss = torch.ones_like(dice_coef) - dice_coef
+            if self.reduction == 'sum':
+                loss = torch.sum(loss, dim=1)
+            elif self.reduction == 'mean':
+                loss = torch.mean(loss, dim=1)
+            losses.append(loss)
+
+        losses = torch.stack(losses).T
+        if mul_label_weight is not None:
+            losses = losses * mul_label_weight
+
+        return self.loss_weight * losses.mean()
