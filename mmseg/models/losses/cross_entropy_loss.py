@@ -29,7 +29,13 @@ def cross_entropy(pred,
     if weight is not None:
         weight = weight.float()
     loss = weight_reduce_loss(
-        loss, weight=weight, reduction=reduction, avg_factor=avg_factor)
+        loss, weight=weight, reduction='none', avg_factor=avg_factor)
+
+    if reduction == 'sum':
+        loss = loss.sum(dim=[1,2])
+
+    if reduction == 'mean':
+        loss = loss.mean(dim=[1,2])
 
     return loss
 
@@ -189,6 +195,7 @@ class CrossEntropyLoss(nn.Module):
                 weight=None,
                 avg_factor=None,
                 reduction_override=None,
+                mul_label_weight=None,
                 **kwargs):
         """Forward function."""
         assert reduction_override in (None, 'none', 'mean', 'sum')
@@ -200,7 +207,7 @@ class CrossEntropyLoss(nn.Module):
             class_weight = None
 
         if weight is None:
-            weight = torch.ones_like(label)
+            weight = torch.ones((label.shape[:3])).type_as(label)
 
         if self.gauss_scale is not None:
             kernel = gkern(self.gauss_kernel, self.gauss_sigma)
@@ -208,12 +215,27 @@ class CrossEntropyLoss(nn.Module):
             img_blurred = F.conv2d(img,nn.Parameter(kernel), padding=(self.gauss_kernel-1)//2)
             weight = 1 + self.gauss_scale * torch.abs(img_blurred - torch.mean(img, dim=1, keepdim=True))
             weight = weight.squeeze(dim=1)
-        loss_cls = self.loss_weight * self.cls_criterion(
-            cls_score,
-            label,
-            weight.type_as(cls_score),
-            class_weight=class_weight,
-            reduction=reduction,
-            avg_factor=avg_factor,
-            **kwargs)
-        return loss_cls
+        if label.ndim == 3:
+            label = label.unsqueeze(3)
+        losses = []
+        for i in range(label.shape[3]):
+            loss_cls = self.loss_weight * self.cls_criterion(
+                cls_score,
+                label[..., i],
+                weight.type_as(cls_score),
+                class_weight=class_weight,
+                reduction=reduction,
+                avg_factor=avg_factor,
+                **kwargs)
+            losses.append(loss_cls)
+        losses = torch.stack(losses).T
+        if mul_label_weight is None:
+            if reduction == 'sum':
+                return losses.sum()
+            if reduction == 'mean':
+                return losses.mean()
+        else:
+            if reduction == 'sum':
+                return (mul_label_weight*losses).sum()
+            if reduction == 'mean':
+                return (mul_label_weight*losses).mean()

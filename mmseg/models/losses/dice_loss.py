@@ -137,4 +137,8 @@ class DiceLoss(nn.Module):
         if mul_label_weight is not None:
             losses = losses * mul_label_weight
 
-        return self.loss_weight * losses.mean()
+        if self.reduction == 'mean':
+            losses = losses.mean()
+        if self.reduction == 'sum':
+            losses = losses.sum()
+        return self.loss_weight * losses
