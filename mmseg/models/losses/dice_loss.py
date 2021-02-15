@@ -110,7 +110,7 @@ class DiceLoss(nn.Module):
                 **kwargs):
         cls_num = logits.shape[1]
         if labels.ndim == 3:
-            labels.unsqueeze(dim=3)
+            labels = labels.unsqueeze(dim=3)
         losses = []
         for i in range(labels.shape[3]):
             label_onehot = _get_one_hot(labels[..., i], cls_num)
