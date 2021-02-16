@@ -219,6 +219,8 @@ class CrossEntropyLoss(nn.Module):
             label = label.unsqueeze(3)
         losses = []
         for i in range(label.shape[3]):
+            if mul_label_weight is not None:
+                weight = weight*mul_label_weight[:, i, ...]
             loss_cls = self.loss_weight * self.cls_criterion(
                 cls_score,
                 label[..., i],
@@ -228,14 +230,18 @@ class CrossEntropyLoss(nn.Module):
                 avg_factor=avg_factor,
                 **kwargs)
             losses.append(loss_cls)
-        losses = torch.stack(losses).T
-        if mul_label_weight is None:
-            if reduction == 'sum':
-                return losses.sum()
-            if reduction == 'mean':
-                return losses.mean()
-        else:
-            if reduction == 'sum':
-                return (mul_label_weight*losses).sum()
-            if reduction == 'mean':
-                return (mul_label_weight*losses).mean()
+        losses = torch.stack(losses)
+        if reduction == 'sum':
+            return losses.sum()
+        if reduction == 'mean':
+            return losses.mean()
+        # if mul_label_weight is None:
+        #     if reduction == 'sum':
+        #         return losses.sum()
+        #     if reduction == 'mean':
+        #         return losses.mean()
+        # else:
+        #     if reduction == 'sum':
+        #         return (mul_label_weight*losses).sum()
+        #     if reduction == 'mean':
+        #         return (mul_label_weight*losses).mean()

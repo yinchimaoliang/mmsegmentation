@@ -1,11 +1,13 @@
 import torch
 import copy
 import torch.nn as nn
+from torch.nn import functional as F
 
 from ..builder import HEADS, build_backbone, build_neck
 from .fcn_head import FCNHead
 
 from mmcv.runner import force_fp32
+from mmcv import cnn
 from mmseg.ops import resize
 from mmseg.models.utils import get_one_hot
 from ..builder import build_loss
@@ -27,9 +29,7 @@ class FCNMulLabelHead(FCNHead):
 
     def __init__(self,
                  wei_net_backbone,
-                 wei_net_neck,
-                 wei_net_in_channels,
-                 wei_net_out_channels,
+                 wei_net_conv,
                  mul_label_ind=None,
                  final_label_ind=None,
                  pretrained=None,
@@ -43,8 +43,7 @@ class FCNMulLabelHead(FCNHead):
         self.label_ind = mul_label_ind
         self.final_label_ind = final_label_ind
         self.wei_net_backbone = build_backbone(wei_net_backbone)
-        self.wei_net_neck = build_neck(wei_net_neck)
-        self.wei_net_fc = nn.Linear(wei_net_in_channels, wei_net_out_channels)
+        self.wei_net_conv = cnn.build_conv_layer(wei_net_conv)
         self.wei_net_softmax = nn.Softmax(dim=1)
         self.wei_net_backbone.init_weights(pretrained)
         self.loss_single = build_loss(loss_single)
@@ -76,7 +75,8 @@ class FCNMulLabelHead(FCNHead):
             dict[str, Tensor]: a dictionary of loss components
         """
         seg_logits = self.forward(inputs)
-        weight = self.wei_net_softmax(self.wei_net_fc(self.wei_net_neck(self.wei_net_backbone(img)[-1])))
+        weight = self.wei_net_softmax(self.wei_net_conv(self.wei_net_backbone(img)[-1]))
+        weight = F.interpolate(weight, gt_semantic_seg.shape[2:4])
         losses = self.losses(img, seg_logits, gt_semantic_seg, weight)
         return losses
 
@@ -99,7 +99,7 @@ class FCNMulLabelHead(FCNHead):
         loss_mul_label = self.loss_decode(
             img,
             seg_logit,
-            seg_label[..., self.label_ind].clone(),
+            seg_label[..., self.label_ind],
             weight=seg_weight,
             ignore_index=self.ignore_index,
             mul_label_weight=mul_label_weight)

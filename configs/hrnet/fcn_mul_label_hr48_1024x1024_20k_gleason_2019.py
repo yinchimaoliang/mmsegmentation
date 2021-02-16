@@ -15,13 +15,18 @@ model = dict(
         wei_net_backbone=dict(
             type='ResNet',
             in_channels=3,
+            strides=(1, 1, 1, 1),
             depth=18,
             num_stages=4,
             out_indices=(3,),
             style='pytorch'),
-        wei_net_neck=dict(type='GlobalAveragePooling'),
-        wei_net_in_channels=512,
-        wei_net_out_channels=3,
+        wei_net_conv=dict(
+            type='Conv2d',
+            in_channels=512,
+            out_channels=3,
+            kernel_size=3,
+            padding=1
+        ),
         mul_label_ind=[1, 2, 3],
         final_label_ind=0,
         pretrained='torchvision://resnet18',
@@ -34,8 +39,8 @@ model = dict(
 )
 
 data = dict(
-    samples_per_gpu=3,
-    workers_per_gpu=3,
+    samples_per_gpu=2,
+    workers_per_gpu=2,
     train=dict(
         ann_dir=['train/3-labels/annotations', 'train/3-labels/Maps3_T', 'train/3-labels/Maps4_T', 'train/3-labels/Maps5_T']))
 
