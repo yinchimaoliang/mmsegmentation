@@ -254,6 +254,8 @@ class BaseSegmentor(nn.Module):
 
         img = img * 0.5 + color_seg * 0.5
         img = img.astype(np.uint8)
+
+        img = mmcv.imresize(img, (img.shape[1] // 10, img.shape[0] // 10))
         # if out_file specified, do not show image in window
         if out_file is not None:
             show = False
