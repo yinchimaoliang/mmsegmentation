@@ -14,7 +14,7 @@ model = dict(
         in_channels=[48, 96, 192, 384],
         channels=sum([48, 96, 192, 384]),
         loss_decode=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0
+            type='FocalLoss', loss_weight=1.0
         )
     )
 )
@@ -59,3 +59,5 @@ data = dict(
         )
     )
 )
+
+evaluation = dict(interval=50, metric='mIoU')
