@@ -75,19 +75,17 @@ class BalanceDataset(object):
         import mmcv
         import os.path as osp
         import numpy as np
-        # infos_per_class = [[] for _ in range(len(self.CLASSES))]
+        infos_per_class = [[] for _ in range(len(self.CLASSES))]
         self.new_inds = [i for i in range(len(self.dataset.img_infos))]
         for i, img_info in enumerate(self.dataset.img_infos):
-            if img_info['filename'] == 'slide002_core073.png':
-                self.new_inds += [i] * 100
-            # ann = mmcv.imread(osp.join(self.dataset.ann_dir, img_info['ann']['seg_map']), 0)
-            # for j in range(len(self.CLASSES)):
-            #     if np.count_nonzero(ann==j) > 0:
-            #         infos_per_class[j].append(i)
-        # max_num = max([len(infos_per_class[i]) for i in range(len(self.CLASSES))])
-        # for i in range(max_num):
-        #     for infos in infos_per_class:
-        #         self.new_inds.append(infos[i % len(infos)])
+            ann = mmcv.imread(osp.join(self.dataset.ann_dir, img_info['ann']['seg_map']), 0)
+            for j in range(len(self.CLASSES)):
+                if np.count_nonzero(ann==j) > 0:
+                    infos_per_class[j].append(i)
+        max_num = max([len(infos_per_class[i]) for i in range(len(self.CLASSES))])
+        for i in range(max_num):
+            for infos in infos_per_class:
+                self.new_inds.append(infos[i % len(infos)])
 
 
     def __getitem__(self, idx):
