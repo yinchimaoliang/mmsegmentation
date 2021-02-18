@@ -32,12 +32,12 @@ model = dict(
         pretrained='torchvision://resnet18',
         num_classes=4,
         norm_cfg=norm_cfg,
-        loss_decode=dict(
-            type='FocalLoss',
-            gauss_scale=5,
-            gauss_kernel=5,
-            gauss_sigma=3,
-        )
+        # loss_decode=dict(
+        #     type='FocalLoss',
+        #     gauss_scale=5,
+        #     gauss_kernel=5,
+        #     gauss_sigma=3,
+        # )
     )
 )
 

@@ -235,13 +235,3 @@ class CrossEntropyLoss(nn.Module):
             return losses.sum()
         if reduction == 'mean':
             return losses.mean()
-        # if mul_label_weight is None:
-        #     if reduction == 'sum':
-        #         return losses.sum()
-        #     if reduction == 'mean':
-        #         return losses.mean()
-        # else:
-        #     if reduction == 'sum':
-        #         return (mul_label_weight*losses).sum()
-        #     if reduction == 'mean':
-        #         return (mul_label_weight*losses).mean()
