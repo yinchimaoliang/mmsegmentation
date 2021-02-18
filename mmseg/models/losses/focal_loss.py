@@ -60,7 +60,8 @@ class FocalLoss(nn.Module):
 
             losses.append(loss)
 
-        losses = torch.stack(losses).T
+        losses = torch.stack(losses).permute(1, 0, 2, 3)
+
         if mul_label_weight is not None:
             losses *= mul_label_weight
 
