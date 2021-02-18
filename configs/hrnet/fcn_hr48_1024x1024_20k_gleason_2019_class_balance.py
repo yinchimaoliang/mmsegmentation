@@ -12,10 +12,7 @@ model = dict(
     decode_head=dict(
         type='FCNHead',
         in_channels=[48, 96, 192, 384],
-        channels=sum([48, 96, 192, 384]),
-        loss_decode=dict(
-            type='FocalLoss', loss_weight=1.0
-        )
+        channels=sum([48, 96, 192, 384])
     )
 )
 
@@ -34,6 +31,7 @@ train_pipeline = [
     dict(type='Resize', img_scale=(1024, 1024), ratio_range=(0.9,1.1)),
     dict(type='RandomCrop', crop_size=crop_size),
     dict(type='RandomFlip', prob=0.5),
+    dict(type='RandomRotate', prob=.5, degree_choice=[90, 180, 270]),
     dict(type='PhotoMetricDistortion'),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size=crop_size, pad_val=0, seg_pad_val=255),
@@ -60,4 +58,4 @@ data = dict(
     )
 )
 
-evaluation = dict(interval=50, metric='mIoU')
+evaluation = dict(interval=200, metric='mIoU')

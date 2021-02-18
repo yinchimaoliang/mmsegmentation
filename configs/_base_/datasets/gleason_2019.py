@@ -1,6 +1,6 @@
 # dataset settings
 dataset_type = 'PathologyDataset'
-data_root = 'data/gleason_2019/qlx'
+data_root = 'data/gleason_2019/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 crop_size = (1024, 1024)
@@ -37,9 +37,9 @@ data = dict(
     train=dict(
         type='PathologyDataset',
         data_root=data_root,
-        img_dir='train/images',
+        img_dir='train/3-labels/images',
         img_suffix='.png',
-        ann_dir='train/annotations',
+        ann_dir='train/3-labels/annotations',
         pipeline=train_pipeline,
         use_patch=False,
         random_sampling=False,

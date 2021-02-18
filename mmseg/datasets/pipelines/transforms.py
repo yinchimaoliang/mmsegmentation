@@ -587,7 +587,7 @@ class RandomRotate(object):
 
     def __init__(self,
                  prob,
-                 degree=0,
+                 degree=1,
                  degree_choice=None,
                  pad_val=0,
                  seg_pad_val=255,
@@ -619,10 +619,10 @@ class RandomRotate(object):
         """
 
         rotate = True if np.random.rand() < self.prob else False
-        if degree_choice is None:
+        if self.degree_choice is None:
             degree = np.random.uniform(min(*self.degree), max(*self.degree))
         else:
-            degree = np.random.choice(degree_choice)
+            degree = np.random.choice(self.degree_choice)
         if rotate:
             # rotate image
             results['img'] = mmcv.imrotate(
