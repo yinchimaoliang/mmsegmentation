@@ -211,9 +211,10 @@ class CrossEntropyLoss(nn.Module):
 
         if self.gauss_scale is not None:
             kernel = gkern(self.gauss_kernel, self.gauss_sigma)
-            kernel = torch.from_numpy(kernel).to(img).expand(1,3,self.gauss_kernel,self.gauss_kernel)
+            kernel = torch.from_numpy(kernel).to(img).expand(1,1,self.gauss_kernel,self.gauss_kernel)
+            img = torch.mean(img, dim=1, keepdim=True)
             img_blurred = F.conv2d(img,nn.Parameter(kernel), padding=(self.gauss_kernel-1)//2)
-            weight = 1 + self.gauss_scale * torch.abs(img_blurred - torch.mean(img, dim=1, keepdim=True))
+            weight = 1 + self.gauss_scale * torch.abs(img_blurred - img)
             weight = weight.squeeze(dim=1)
         if label.ndim == 3:
             label = label.unsqueeze(3)
