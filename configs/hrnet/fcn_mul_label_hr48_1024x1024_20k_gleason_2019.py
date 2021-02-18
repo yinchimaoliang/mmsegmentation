@@ -31,13 +31,7 @@ model = dict(
         final_label_ind=0,
         pretrained='torchvision://resnet18',
         num_classes=4,
-        norm_cfg=norm_cfg,
-        # loss_decode=dict(
-        #     type='FocalLoss',
-        #     gauss_scale=5,
-        #     gauss_kernel=5,
-        #     gauss_sigma=3,
-        # )
+        norm_cfg=norm_cfg
     )
 )
 
@@ -45,7 +39,7 @@ data = dict(
     samples_per_gpu=2,
     workers_per_gpu=2,
     train=dict(
-        ann_dir=['train/3-labels/annotations', 'train/3-labels/Maps3_T', 'train/3-labels/Maps4_T', 'train/3-labels/Maps5_T']))
+        ann_dir=['train/3-labels/annotations', 'train/3-labels-134/Maps1_T', 'train/3-labels-134/Maps3_T', 'train/3-labels-134/Maps4_T']))
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 runner = dict(type='IterBasedRunner', max_iters=10000)
