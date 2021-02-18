@@ -48,7 +48,7 @@ class FCNMulLabelHead(FCNHead):
         self.wei_net_backbone.init_weights(pretrained)
         self.loss_single = build_loss(loss_single)
         self.sigma = sigma
-        self.first_iter_loss = []
+        self.iter_num = 0
 
     def forward(self, inputs):
         """Forward function."""
@@ -105,15 +105,21 @@ class FCNMulLabelHead(FCNHead):
             ignore_index=self.ignore_index,
             mul_label_weight=mul_label_weight)
 
-        if isinstance(self.first_iter_loss, torch.Tensor):
-            loss['loss_seg'] = loss_mul_label + self.sigma * (loss_single_label / self.first_iter_loss) * loss_single_label
-        elif len(self.first_iter_loss) == 10:
-            self.first_iter_loss = torch.stack(self.first_iter_loss).mean()
-            loss['loss_seg'] = loss_mul_label + self.sigma * (
-                        loss_single_label / self.first_iter_loss) * loss_single_label
-        else:
-            self.first_iter_loss.append(loss_single_label.clone().detach())
+        if self.iter_num < 100:
             loss['loss_seg'] = loss_single_label
+        else:
+            loss['loss_seg'] = loss_single_label + loss_mul_label
+
+        self.iter_num += 1
+        # if isinstance(self.first_iter_loss, torch.Tensor):
+        #     loss['loss_seg'] = loss_mul_label + self.sigma * (loss_single_label / self.first_iter_loss) * loss_single_label
+        # elif len(self.first_iter_loss) == 10:
+        #     self.first_iter_loss = torch.stack(self.first_iter_loss).mean()
+        #     loss['loss_seg'] = loss_mul_label + self.sigma * (
+        #                 loss_single_label / self.first_iter_loss) * loss_single_label
+        # else:
+        #     self.first_iter_loss.append(loss_single_label.clone().detach())
+        #     loss['loss_seg'] = loss_single_label
 
         loss['acc_seg'] = accuracy(seg_logit, seg_label[..., self.final_label_ind])
         return loss

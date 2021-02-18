@@ -58,4 +58,5 @@ data = dict(
     )
 )
 
-evaluation = dict(interval=200, metric='mIoU')
+checkpoint_config = dict(by_epoch=False, interval=10000)
+evaluation = dict(interval=200, metric='mDice')
