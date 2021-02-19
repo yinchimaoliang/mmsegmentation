@@ -13,7 +13,7 @@ model = dict(
         in_channels=[48, 96, 192, 384],
         channels=sum([48, 96, 192, 384]),
         loss_decode=dict(
-            type='FocalLoss', use_sigmoid=False, gauss_scale=5, gauss_kernel=5, gauss_sigma=3
+            type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3
         )
     )
 )
