@@ -75,7 +75,9 @@ class FocalLoss(nn.Module):
                 loss = batch_loss.mean(dim=1)
             if self.reduction == 'sum':
                 loss = batch_loss.sum(dim=1)
-            loss *= img_weight
+
+            if self.gauss_scale is not None:
+                loss *= img_weight
             losses.append(loss)
 
         losses = torch.stack(losses).permute(1, 0, 2, 3)
