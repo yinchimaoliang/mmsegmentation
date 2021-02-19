@@ -105,21 +105,11 @@ class FCNMulLabelHead(FCNHead):
             ignore_index=self.ignore_index,
             mul_label_weight=mul_label_weight)
 
-        if self.iter_num < 100:
-            loss['loss_seg'] = loss_single_label
-        else:
-            loss['loss_seg'] = loss_single_label + loss_mul_label
+        iter_num_sig = self.sigma * (torch.sigmoid(torch.tensor(self.iter_num // 100).float()) - 1/2) * 2
+        iter_num_sig = iter_num_sig.type_as(seg_logit)
+        loss['loss_seg'] = (1 / (1 + iter_num_sig)) * loss_single_label + (iter_num_sig / (1 + iter_num_sig)) * loss_mul_label
 
         self.iter_num += 1
-        # if isinstance(self.first_iter_loss, torch.Tensor):
-        #     loss['loss_seg'] = loss_mul_label + self.sigma * (loss_single_label / self.first_iter_loss) * loss_single_label
-        # elif len(self.first_iter_loss) == 10:
-        #     self.first_iter_loss = torch.stack(self.first_iter_loss).mean()
-        #     loss['loss_seg'] = loss_mul_label + self.sigma * (
-        #                 loss_single_label / self.first_iter_loss) * loss_single_label
-        # else:
-        #     self.first_iter_loss.append(loss_single_label.clone().detach())
-        #     loss['loss_seg'] = loss_single_label
 
         loss['acc_seg'] = accuracy(seg_logit, seg_label[..., self.final_label_ind])
         return loss
