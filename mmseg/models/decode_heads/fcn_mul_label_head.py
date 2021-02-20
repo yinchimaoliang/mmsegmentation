@@ -95,7 +95,7 @@ class FCNMulLabelHead(FCNHead):
         else:
             seg_weight = None
         seg_label = seg_label.squeeze(1)
-        loss_single_label = self.loss_single(img, seg_logit, seg_label[..., self.final_label_ind]
+        loss_single_label = self.loss_single(img, seg_logit, seg_label[..., self.final_label_ind], weight=seg_weight
             ,ignore_index=self.ignore_index)
         loss_mul_label = self.loss_decode(
             img,
