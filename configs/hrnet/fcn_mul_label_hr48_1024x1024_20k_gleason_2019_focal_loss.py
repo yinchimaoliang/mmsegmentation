@@ -35,6 +35,9 @@ model = dict(
         loss_decode=dict(
             type='FocalLoss'
         ),
+        loss_single=dict(
+             type='FocalLoss'
+        ),
         sigma=1
     )
 )

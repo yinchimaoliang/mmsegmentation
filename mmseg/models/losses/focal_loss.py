@@ -28,7 +28,7 @@ class FocalLoss(nn.Module):
         self.loss_weight = loss_weight
         self.reduction = reduction
 
-    def forward(self, img, input, targets, weight, ignore_index, mul_label_weight=None):
+    def forward(self, img, input, targets, weight=None, ignore_index=None, mul_label_weight=None):
         '''
         only support ignore at 0
         '''
