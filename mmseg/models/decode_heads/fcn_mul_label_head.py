@@ -38,6 +38,7 @@ class FCNMulLabelHead(FCNHead):
                      use_sigmoid=False,
                      loss_weight=1.0),
                  sigma=5,
+                 loss_step=100,
                  **kwargs):
         super(FCNMulLabelHead, self).__init__(**kwargs)
         self.label_ind = mul_label_ind
@@ -49,6 +50,7 @@ class FCNMulLabelHead(FCNHead):
         self.loss_single = build_loss(loss_single)
         self.sigma = sigma
         self.iter_num = 0
+        self.loss_step = loss_step
 
     def forward(self, inputs):
         """Forward function."""
@@ -105,7 +107,7 @@ class FCNMulLabelHead(FCNHead):
             ignore_index=self.ignore_index,
             mul_label_weight=mul_label_weight)
 
-        iter_num_sig = self.sigma * (torch.sigmoid(torch.tensor(self.iter_num // 100).float()) - 1/2) * 2
+        iter_num_sig = self.sigma * (torch.sigmoid(torch.tensor(self.iter_num // self.loss_step).float()) - 1/2) * 2
         iter_num_sig = iter_num_sig.type_as(seg_logit)
         loss['loss_seg'] = (1 / (1 + iter_num_sig)) * loss_single_label + (iter_num_sig / (1 + iter_num_sig)) * loss_mul_label
 

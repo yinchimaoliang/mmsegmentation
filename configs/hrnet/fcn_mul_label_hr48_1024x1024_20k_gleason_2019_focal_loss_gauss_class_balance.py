@@ -39,7 +39,8 @@ model = dict(
         loss_single=dict(
              type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3
         ),
-        sigma=1
+        sigma=1,
+        loss_step=1000
     )
 )
 
@@ -79,8 +80,8 @@ data = dict(
     )
 )
 
-optimizer = dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=0.0005)
-lr_config = dict(policy='poly', power=0.9, min_lr=5e-4, by_epoch=False)
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
+lr_config = dict(policy='poly', power=0.9, min_lr=1e-4, by_epoch=False)
 runner = dict(type='IterBasedRunner', max_iters=10000)
 checkpoint_config = dict(by_epoch=False, interval=10000)
 evaluation = dict(interval=200, metric='mDice')
