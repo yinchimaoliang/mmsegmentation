@@ -63,12 +63,13 @@ class BalanceDataset(object):
         times (int): Repeat times.
     """
 
-    def __init__(self, dataset):
+    def __init__(self, dataset, final_label_idx=0):
         self.dataset = dataset
         self.CLASSES = dataset.CLASSES
         self.PALETTE = dataset.PALETTE
         self._ori_len = len(self.dataset)
         self.new_inds = []
+        self.final_label_idx = final_label_idx
         self._balance_class()
 
     def _balance_class(self):
@@ -77,7 +78,11 @@ class BalanceDataset(object):
         import numpy as np
         infos_per_class = [[] for _ in range(len(self.CLASSES))]
         for i, img_info in enumerate(self.dataset.img_infos):
-            ann = mmcv.imread(osp.join(self.dataset.ann_dir, img_info['ann']['seg_map']), 0)
+            if isinstance(self.dataset.ann_dir, str):
+                ann_dir = self.dataset.ann_dir
+            else:
+                ann_dir = self.dataset.ann_dir[self.final_label_idx]
+            ann = mmcv.imread(osp.join(ann_dir, img_info['ann']['seg_map']), 0)
             for j in range(len(self.CLASSES)):
                 if np.count_nonzero(ann==j) > 0:
                     infos_per_class[j].append(i)
