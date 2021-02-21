@@ -10,12 +10,36 @@ model = dict(
             stage3=dict(num_channels=(48, 96, 192)),
             stage4=dict(num_channels=(48, 96, 192, 384)))),
     decode_head=dict(
-        type='FCNHead',
+        type='FCNMulLabelHead',
         in_channels=[48, 96, 192, 384],
         channels=sum([48, 96, 192, 384]),
+        wei_net_backbone=dict(
+            type='ResNet',
+            in_channels=3,
+            strides=(1, 1, 1, 1),
+            depth=18,
+            num_stages=4,
+            out_indices=(3,),
+            style='pytorch'),
+        wei_net_conv=dict(
+            type='Conv2d',
+            in_channels=512,
+            out_channels=3,
+            kernel_size=3,
+            padding=1
+        ),
+        mul_label_ind=[1, 2, 3],
+        final_label_ind=0,
+        pretrained='torchvision://resnet18',
+        num_classes=4,
+        norm_cfg=norm_cfg,
         loss_decode=dict(
-            type='FocalLoss'
-        )
+            type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3
+        ),
+        loss_single=dict(
+             type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3
+        ),
+        sigma=1
     )
 )
 
