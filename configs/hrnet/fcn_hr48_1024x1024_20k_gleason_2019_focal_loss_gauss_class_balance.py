@@ -44,9 +44,9 @@ data = dict(
         dataset=dict(
             type='PathologyDataset',
             data_root=data_root,
-            img_dir='train/3-labels-134/images',
+            img_dir='train/train/images',
             img_suffix='.png',
-            ann_dir='train/3-labels-134/annotations',
+            ann_dir='train/train/annotations',
             pipeline=train_pipeline,
             use_patch=False,
             random_sampling=False,
@@ -57,5 +57,5 @@ data = dict(
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 runner = dict(type='IterBasedRunner', max_iters=10000)
-checkpoint_config = dict(by_epoch=False, interval=10000)
-evaluation = dict(interval=200, metric='mDice')
+checkpoint_config = dict(by_epoch=False, interval=1000)
+evaluation = dict(interval=1000, metric='mDice')
