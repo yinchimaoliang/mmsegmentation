@@ -38,7 +38,8 @@ model = dict(
         loss_single=dict(
              type='FocalLoss'
         ),
-        sigma=1
+        sigma=1,
+        loss_step=1000
     )
 )
 
