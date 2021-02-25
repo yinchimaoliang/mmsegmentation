@@ -51,7 +51,7 @@ model = dict(
         ),
         mul_label_ind=[1, 2, 3],
         final_label_ind=0,
-        pretrained='torchvision://resnet18',
+        pretrained='open-mmlab://msra/hrnetv2_w18',
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(
