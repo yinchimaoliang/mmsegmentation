@@ -44,7 +44,8 @@ class FocalLoss(nn.Module):
 
         if self.gauss_scale is not None:
             kernel = gkern(self.gauss_kernel, self.gauss_sigma)
-            kernel = torch.from_numpy(kernel).to(img).expand(1, 3, self.gauss_kernel, self.gauss_kernel)
+            img = img.mean(dim=1, keepdim=True)
+            kernel = torch.from_numpy(kernel).to(img).expand(1, 1, self.gauss_kernel, self.gauss_kernel)
             img_blurred = F.conv2d(img, nn.Parameter(kernel), padding=(self.gauss_kernel - 1) // 2)
             img_weight = 1 + self.gauss_scale * torch.abs(img_blurred - torch.mean(img, dim=1, keepdim=True))
             img_weight = img_weight.squeeze(1)
