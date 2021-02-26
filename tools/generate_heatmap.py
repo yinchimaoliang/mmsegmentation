@@ -40,8 +40,6 @@ def _generate_heatmap(img, gauss_kernel, gauss_sigma, gauss_scale):
     img_weight = 1 + gauss_scale * torch.abs(img_blurred - torch.mean(img, dim=1, keepdim=True))
     img_weight = img_weight.squeeze(0)
     img_weight = img_weight.squeeze(0)
-    img_weight = img_weight - torch.min(img_weight)
-    img_weight = img_weight / torch.max(img_weight)
     img_weight = img_weight.detach().numpy()
     heatmap = cv.applyColorMap(np.uint8(img_weight * 255), cv.COLORMAP_JET)
     heatmap = np.float32(heatmap) / 255
@@ -66,3 +64,4 @@ if __name__ == '__main__':
         heatmap = _generate_heatmap(img_normalized, 5, 3, 5)
         cv.imwrite(os.path.join(result_dir, name), np.uint8(heatmap * 255))
         _show_heatmap_on_img(img, heatmap, os.path.join(result_dir, name))
+        break
