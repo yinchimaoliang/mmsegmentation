@@ -1,4 +1,4 @@
-_base_ = './fcn_hr18_1024x1024_20k_gleason_2019.py'
+_base_ = './fcn_hr18_1024x1024_20k_gleason_2019_focal_loss.py'
 norm_cfg = dict(type='BN', requires_grad=True)
 data_root = 'data/gleason_2019/'
 model = dict(
