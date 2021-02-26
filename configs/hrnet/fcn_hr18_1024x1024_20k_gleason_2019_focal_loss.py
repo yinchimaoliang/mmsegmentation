@@ -14,7 +14,12 @@ model = dict(
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0
+            type='FocalLoss'
         )
     )
 )
+
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
+runner = dict(type='IterBasedRunner', max_iters=10000)
+checkpoint_config = dict(by_epoch=False, interval=1000)
+evaluation = dict(interval=1000, metric='mDice')
