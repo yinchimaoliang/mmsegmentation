@@ -41,6 +41,8 @@ def _generate_heatmap(img, gauss_kernel, gauss_sigma, gauss_scale):
     img_weight = img_weight.squeeze(0)
     img_weight = img_weight.squeeze(0)
     img_weight = img_weight.detach().numpy()
+    img_weight = img_weight / img_weight.max() * 5
+    img_weight[img_weight > 1] = 1
     heatmap = cv.applyColorMap(np.uint8(img_weight * 255), cv.COLORMAP_JET)
     heatmap = np.float32(heatmap) / 255
     return heatmap
@@ -59,9 +61,11 @@ if __name__ == '__main__':
     mmcv.mkdir_or_exist(result_dir)
     names = os.listdir(img_dir)
     for name in names:
+        if name != 'slide002_core073.jpg':
+            continue
         img = cv.imread(os.path.join(img_dir, name))
         img_normalized = _process_img(img)
-        heatmap = _generate_heatmap(img_normalized, 5, 3, 5)
+        heatmap = _generate_heatmap(img_normalized, 51, 3, 50)
         cv.imwrite(os.path.join(result_dir, name), np.uint8(heatmap * 255))
         _show_heatmap_on_img(img, heatmap, os.path.join(result_dir, name))
         break

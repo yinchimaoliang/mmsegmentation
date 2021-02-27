@@ -26,10 +26,10 @@ model = dict(
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(
-            type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3
+            type='FocalLoss', gauss_scale=50, gauss_kernel=5, gauss_sigma=3
         ),
         loss_single=dict(
-             type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3
+             type='FocalLoss', gauss_scale=50, gauss_kernel=5, gauss_sigma=3
         ),
         sigma=1,
         loss_step=1000
