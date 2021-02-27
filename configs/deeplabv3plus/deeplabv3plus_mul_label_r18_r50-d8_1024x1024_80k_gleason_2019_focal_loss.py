@@ -22,10 +22,10 @@ model = dict(
         pretrained='torchvision://resnet18',
         num_classes=4,
         loss_decode=dict(
-            type='FocalLoss', gauss_scale=50, gauss_kernel=5, gauss_sigma=3
+            type='FocalLoss'
         ),
         loss_single=dict(
-            type='FocalLoss', gauss_scale=50, gauss_kernel=5, gauss_sigma=3
+            type='FocalLoss'
         ),
         sigma=1,
         loss_step=1000))
