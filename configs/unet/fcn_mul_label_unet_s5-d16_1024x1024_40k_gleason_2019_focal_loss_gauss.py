@@ -12,11 +12,37 @@ model = dict(
     backbone=dict(
         norm_cfg=norm_cfg),
     decode_head=dict(
+        type='FCNMulLabelHead',
         norm_cfg=norm_cfg,
         num_classes=4,
         loss_decode=dict(
              type='FocalLoss', gauss_scale=50, gauss_kernel=5, gauss_sigma=3
-        )),
+        ),
+        wei_net_backbone=dict(
+            type='ResNet',
+            in_channels=3,
+            strides=(1, 1, 1, 1),
+            depth=18,
+            num_stages=4,
+            out_indices=(3,),
+            style='pytorch'),
+        wei_net_conv=dict(
+            type='Conv2d',
+            in_channels=512,
+            out_channels=3,
+            kernel_size=3,
+            padding=1
+        ),
+        mul_label_ind=[1, 2, 3],
+        final_label_ind=0,
+        pretrained='torchvision://resnet18',
+        loss_single=dict(
+             type='FocalLoss', gauss_scale=50, gauss_kernel=5, gauss_sigma=3
+        ),
+        sigma=1,
+        loss_step=1000
+    ),
+
     auxiliary_head=None,
     train_cfg=dict(),
     test_cfg=dict(mode='whole')
@@ -41,6 +67,8 @@ test_pipeline = [
 data = dict(
     samples_per_gpu=2,
     workers_per_gpu=2,
+    train=dict(
+        ann_dir=['train/train/annotations', 'train/train/Maps1_T', 'train/train/Maps3_T', 'train/train/Maps4_T']),
     val=dict(
         type=dataset_type,
         data_root=data_root,
