@@ -35,7 +35,7 @@ class PathologyDataset(CustomDataset):
 
     CLASSES = ('benign', 'gleason grade 3', 'gleason grade 4', 'gleason grade 5')
 
-    PALETTE = [[0, 0, 0], [0, 255, 0], [255, 0, 0], [0, 0, 255]]
+    PALETTE = [[0, 0, 0], [255, 0, 0], [0, 255, 0], [0, 0, 255]]
 
     def __init__(self,
                  use_patch=True,
