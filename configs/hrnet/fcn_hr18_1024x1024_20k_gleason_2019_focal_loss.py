@@ -5,19 +5,12 @@ _base_ = [
 
 norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
-    backbone=dict(
-        norm_cfg=norm_cfg,
-        ),
+    backbone=dict(norm_cfg=norm_cfg, ),
     decode_head=dict(
-
         type='FCNHead',
         num_classes=4,
         norm_cfg=norm_cfg,
-        loss_decode=dict(
-            type='FocalLoss'
-        )
-    )
-)
+        loss_decode=dict(type='FocalLoss', gamma=0.5)))
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 runner = dict(type='IterBasedRunner', max_iters=10000)
