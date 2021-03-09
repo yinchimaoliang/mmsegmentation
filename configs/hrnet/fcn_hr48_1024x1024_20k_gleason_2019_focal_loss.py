@@ -12,11 +12,7 @@ model = dict(
         type='FCNHead',
         in_channels=[48, 96, 192, 384],
         channels=sum([48, 96, 192, 384]),
-        loss_decode=dict(
-            type='FocalLoss'
-        )
-    )
-)
+        loss_decode=dict(type='FocalLoss', gamma=0.1)))
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 runner = dict(type='IterBasedRunner', max_iters=10000)

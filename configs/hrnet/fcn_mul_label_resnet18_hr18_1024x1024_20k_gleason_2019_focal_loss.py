@@ -24,8 +24,8 @@ model = dict(
         pretrained='torchvision://resnet18',
         num_classes=4,
         norm_cfg=norm_cfg,
-        loss_decode=dict(type='FocalLoss'),
-        loss_single=dict(type='FocalLoss', gamma=0.5),
+        loss_decode=dict(type='FocalLoss', gamma=0.1),
+        loss_single=dict(type='FocalLoss', gamma=0.1),
         sigma=1,
         loss_step=1000))
 

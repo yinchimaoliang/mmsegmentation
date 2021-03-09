@@ -13,10 +13,11 @@ model = dict(
         in_channels=[48, 96, 192, 384],
         channels=sum([48, 96, 192, 384]),
         loss_decode=dict(
-            type='FocalLoss', gauss_scale=50, gauss_kernel=5, gauss_sigma=3
-        )
-    )
-)
+            type='FocalLoss',
+            gamma=0.1,
+            gauss_scale=50,
+            gauss_kernel=5,
+            gauss_sigma=3)))
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 runner = dict(type='IterBasedRunner', max_iters=10000)

@@ -18,36 +18,31 @@ model = dict(
             strides=(1, 1, 1, 1),
             depth=18,
             num_stages=4,
-            out_indices=(3,),
+            out_indices=(3, ),
             style='pytorch'),
         wei_net_conv=dict(
             type='Conv2d',
             in_channels=512,
             out_channels=3,
             kernel_size=3,
-            padding=1
-        ),
+            padding=1),
         mul_label_ind=[1, 2, 3],
         final_label_ind=0,
         pretrained='torchvision://resnet18',
         num_classes=4,
         norm_cfg=norm_cfg,
-        loss_decode=dict(
-            type='FocalLoss'
-        ),
-        loss_single=dict(
-             type='FocalLoss'
-        ),
+        loss_decode=dict(type='FocalLoss', gamma=0.1),
+        loss_single=dict(type='FocalLoss', gamma=0.1),
         sigma=1,
-        loss_step=1000
-    )
-)
+        loss_step=1000))
 
 data = dict(
     samples_per_gpu=2,
     workers_per_gpu=2,
-    train=dict(
-        ann_dir=['train/train/annotations', 'train/train/Maps1_T', 'train/train/Maps3_T', 'train/train/Maps4_T']))
+    train=dict(ann_dir=[
+        'train/train/annotations', 'train/train/Maps1_T',
+        'train/train/Maps3_T', 'train/train/Maps4_T'
+    ]))
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 runner = dict(type='IterBasedRunner', max_iters=10000)
