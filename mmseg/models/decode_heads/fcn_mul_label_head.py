@@ -1,17 +1,13 @@
 import torch
-import copy
 import torch.nn as nn
+from mmcv import cnn
+from mmcv.runner import force_fp32
 from torch.nn import functional as F
 
-from ..builder import HEADS, build_backbone, build_neck
-from .fcn_head import FCNHead
-
-from mmcv.runner import force_fp32
-from mmcv import cnn
 from mmseg.ops import resize
-from mmseg.models.utils import get_one_hot
-from ..builder import build_loss
+from ..builder import HEADS, build_backbone, build_loss
 from ..losses import accuracy
+from .fcn_head import FCNHead
 
 
 @HEADS.register_module()
@@ -39,11 +35,14 @@ class FCNMulLabelHead(FCNHead):
                      loss_weight=1.0),
                  sigma=5,
                  loss_step=100,
+                 num_experts=3,
+                 fc_in_channels=147456,
                  **kwargs):
         super(FCNMulLabelHead, self).__init__(**kwargs)
         self.label_ind = mul_label_ind
         self.final_label_ind = final_label_ind
         self.wei_net_backbone = build_backbone(wei_net_backbone)
+        self.wei_net_fc = nn.Linear(fc_in_channels, num_experts)
         self.wei_net_conv = cnn.build_conv_layer(wei_net_conv)
         self.wei_net_softmax = nn.Softmax(dim=1)
         self.wei_net_backbone.init_weights(pretrained)
@@ -61,7 +60,13 @@ class FCNMulLabelHead(FCNHead):
         output = self.cls_seg(output)
         return output
 
-    def forward_train(self, img, inputs, img_metas, gt_semantic_seg, train_cfg, weight=None):
+    def forward_train(self,
+                      img,
+                      inputs,
+                      img_metas,
+                      gt_semantic_seg,
+                      train_cfg,
+                      weight_map=None):
         """Forward function for training.
         Args:
             inputs (list[Tensor]): List of multi-level img features.
@@ -78,12 +83,19 @@ class FCNMulLabelHead(FCNHead):
             dict[str, Tensor]: a dictionary of loss components
         """
         seg_logits = self.forward(inputs)
-        weight = self.wei_net_softmax(self.wei_net_conv(self.wei_net_backbone(img)[-1]))
-        weight = F.interpolate(weight, gt_semantic_seg.shape[2:4])
-        losses = self.losses(img, seg_logits, gt_semantic_seg, weight)
+        feature_map = self.wei_net_backbone(img)[-1]
+        weight_map = self.wei_net_softmax(self.wei_net_conv(feature_map))
+        weight_expert = self.wei_net_fc(
+            feature_map.reshape([feature_map.shape[0], -1]))
+        weight_expert = weight_expert.reshape(
+            [weight_expert.shape[0], weight_expert.shape[1], 1,
+             1]).expand_as(weight_map)
+        weight_map = weight_expert * weight_map
+        weight_map = F.interpolate(weight_map, gt_semantic_seg.shape[2:4])
+        losses = self.losses(img, seg_logits, gt_semantic_seg, weight_map)
         return losses
 
-    @force_fp32(apply_to=('seg_logit',))
+    @force_fp32(apply_to=('seg_logit', ))
     def losses(self, img, seg_logit, seg_label, mul_label_weight):
         """Compute segmentation loss."""
         loss = dict()
@@ -97,8 +109,12 @@ class FCNMulLabelHead(FCNHead):
         else:
             seg_weight = None
         seg_label = seg_label.squeeze(1)
-        loss_single_label = self.loss_single(img, seg_logit, seg_label[..., self.final_label_ind], weight=seg_weight
-            ,ignore_index=self.ignore_index)
+        loss_single_label = self.loss_single(
+            img,
+            seg_logit,
+            seg_label[..., self.final_label_ind],
+            weight=seg_weight,
+            ignore_index=self.ignore_index)
         loss_mul_label = self.loss_decode(
             img,
             seg_logit,
@@ -107,11 +123,14 @@ class FCNMulLabelHead(FCNHead):
             ignore_index=self.ignore_index,
             mul_label_weight=mul_label_weight)
 
-        iter_num_sig = self.sigma * (torch.sigmoid(torch.tensor(self.iter_num // self.loss_step).float()) - 1/2) * 2
+        iter_num_sig = self.sigma * (torch.sigmoid(
+            torch.tensor(self.iter_num // self.loss_step).float()) - 1 / 2) * 2
         iter_num_sig = iter_num_sig.type_as(seg_logit)
-        loss['loss_seg'] = (1 / (1 + iter_num_sig)) * loss_single_label + (iter_num_sig / (1 + iter_num_sig)) * loss_mul_label
+        loss['loss_seg'] = (1 / (1 + iter_num_sig)) * loss_single_label + (
+            iter_num_sig / (1 + iter_num_sig)) * loss_mul_label
 
         self.iter_num += 1
 
-        loss['acc_seg'] = accuracy(seg_logit, seg_label[..., self.final_label_ind])
+        loss['acc_seg'] = accuracy(seg_logit, seg_label[...,
+                                                        self.final_label_ind])
         return loss

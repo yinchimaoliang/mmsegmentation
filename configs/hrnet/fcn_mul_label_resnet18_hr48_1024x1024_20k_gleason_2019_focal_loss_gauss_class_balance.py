@@ -19,30 +19,26 @@ model = dict(
             strides=(1, 1, 1, 1),
             depth=18,
             num_stages=4,
-            out_indices=(3,),
+            out_indices=(3, ),
             style='pytorch'),
         wei_net_conv=dict(
             type='Conv2d',
             in_channels=512,
             out_channels=3,
             kernel_size=3,
-            padding=1
-        ),
+            padding=1),
         mul_label_ind=[1, 2, 3],
         final_label_ind=0,
         pretrained='torchvision://resnet18',
         num_classes=4,
+        fc_in_channels=33554432,
         norm_cfg=norm_cfg,
         loss_decode=dict(
-            type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3
-        ),
+            type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3),
         loss_single=dict(
-             type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3
-        ),
+            type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3),
         sigma=1,
-        loss_step=1000
-    )
-)
+        loss_step=1000))
 
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
@@ -51,7 +47,7 @@ crop_size = (1024, 1024)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', imdecode_backend='cv2'),
-    dict(type='Resize', img_scale=(1024, 1024), ratio_range=(0.9,1.1)),
+    dict(type='Resize', img_scale=(1024, 1024), ratio_range=(0.9, 1.1)),
     dict(type='RandomCrop', crop_size=crop_size),
     dict(type='RandomFlip', prob=0.5),
     dict(type='RandomRotate', prob=.5, degree_choice=[90, 180, 270]),
@@ -62,7 +58,6 @@ train_pipeline = [
     dict(type='Collect', keys=['img', 'gt_semantic_seg']),
 ]
 
-
 data = dict(
     train=dict(
         type='BalanceDataset',
@@ -71,14 +66,17 @@ data = dict(
             data_root=data_root,
             img_dir='train/train/images',
             img_suffix='.png',
-            ann_dir=['train/train/annotations', 'train/train/Maps1_T', 'train/train/Maps3_T', 'train/train/Maps4_T'],
+            ann_dir=[
+                'train/train/annotations', 'train/train/Maps1_T',
+                'train/train/Maps3_T', 'train/train/Maps4_T'
+            ],
             pipeline=train_pipeline,
             use_patch=False,
             random_sampling=False,
-            classes=['benign', 'gleason grade 3', 'gleason grade 4', 'gleason grade 5']
-        )
-    )
-)
+            classes=[
+                'benign', 'gleason grade 3', 'gleason grade 4',
+                'gleason grade 5'
+            ])))
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 lr_config = dict(policy='poly', power=0.9, min_lr=1e-4, by_epoch=False)

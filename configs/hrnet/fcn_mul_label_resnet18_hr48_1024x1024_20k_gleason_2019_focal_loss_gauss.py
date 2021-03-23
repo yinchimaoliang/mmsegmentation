@@ -30,6 +30,7 @@ model = dict(
         final_label_ind=0,
         pretrained='torchvision://resnet18',
         num_classes=4,
+        fc_in_channels=33554432,
         norm_cfg=norm_cfg,
         loss_decode=dict(
             type='FocalLoss',

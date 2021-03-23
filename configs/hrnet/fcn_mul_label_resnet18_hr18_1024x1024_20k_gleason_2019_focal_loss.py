@@ -27,6 +27,7 @@ model = dict(
         loss_decode=dict(type='FocalLoss', gamma=0.1),
         loss_single=dict(type='FocalLoss', gamma=0.1),
         sigma=1,
+        fc_in_channels=33554432,
         loss_step=1000))
 
 data = dict(

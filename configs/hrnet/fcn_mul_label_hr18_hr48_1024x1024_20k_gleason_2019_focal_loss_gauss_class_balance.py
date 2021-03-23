@@ -1,4 +1,4 @@
-_base_ = './fcn_hr18_1024x1024_20k_gleason_2019.py'
+_base_ = './fcn_hr18_1024x1024_20k_gleason_2019_focal_loss.py'
 norm_cfg = dict(type='BN', requires_grad=True)
 data_root = 'data/gleason_2019/'
 model = dict(
@@ -47,23 +47,18 @@ model = dict(
             in_channels=144,
             out_channels=3,
             kernel_size=3,
-            padding=1
-        ),
+            padding=1),
         mul_label_ind=[1, 2, 3],
         final_label_ind=0,
         pretrained='open-mmlab://msra/hrnetv2_w18',
         num_classes=4,
         norm_cfg=norm_cfg,
         loss_decode=dict(
-            type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3
-        ),
+            type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3),
         loss_single=dict(
-            type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3
-        ),
+            type='FocalLoss', gauss_scale=5, gauss_kernel=5, gauss_sigma=3),
         sigma=1,
-        loss_step=1000
-    )
-)
+        loss_step=1000))
 
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
@@ -72,7 +67,7 @@ crop_size = (1024, 1024)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', imdecode_backend='cv2'),
-    dict(type='Resize', img_scale=(1024, 1024), ratio_range=(0.9,1.1)),
+    dict(type='Resize', img_scale=(1024, 1024), ratio_range=(0.9, 1.1)),
     dict(type='RandomCrop', crop_size=crop_size),
     dict(type='RandomFlip', prob=0.5),
     dict(type='RandomRotate', prob=.5, degree_choice=[90, 180, 270]),
@@ -90,14 +85,17 @@ data = dict(
             data_root=data_root,
             img_dir='train/train/images',
             img_suffix='.png',
-            ann_dir=['train/train/annotations', 'train/train/Maps1_T', 'train/train/Maps3_T', 'train/train/Maps4_T'],
+            ann_dir=[
+                'train/train/annotations', 'train/train/Maps1_T',
+                'train/train/Maps3_T', 'train/train/Maps4_T'
+            ],
             pipeline=train_pipeline,
             use_patch=False,
             random_sampling=False,
-            classes=['benign', 'gleason grade 3', 'gleason grade 4', 'gleason grade 5']
-        )
-    )
-)
+            classes=[
+                'benign', 'gleason grade 3', 'gleason grade 4',
+                'gleason grade 5'
+            ])))
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 runner = dict(type='IterBasedRunner', max_iters=10000)
 checkpoint_config = dict(by_epoch=False, interval=1000)

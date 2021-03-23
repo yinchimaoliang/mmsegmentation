@@ -1,4 +1,4 @@
-_base_ = './fcn_hr18_1024x1024_20k_gleason_2019.py'
+_base_ = './fcn_hr18_1024x1024_20k_gleason_2019_focal_loss.py'
 norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
     pretrained='open-mmlab://msra/hrnetv2_w48',
@@ -46,29 +46,24 @@ model = dict(
             in_channels=144,
             out_channels=3,
             kernel_size=3,
-            padding=1
-        ),
+            padding=1),
         mul_label_ind=[1, 2, 3],
         final_label_ind=0,
         pretrained='open-mmlab://msra/hrnetv2_w18',
         num_classes=4,
         norm_cfg=norm_cfg,
-        loss_decode=dict(
-            type='FocalLoss'
-        ),
-        loss_single=dict(
-             type='FocalLoss'
-        ),
+        loss_decode=dict(type='FocalLoss'),
+        loss_single=dict(type='FocalLoss'),
         sigma=1,
-        loss_step=1000
-    )
-)
+        loss_step=1000))
 
 data = dict(
     samples_per_gpu=2,
     workers_per_gpu=2,
-    train=dict(
-        ann_dir=['train/train/annotations', 'train/train/Maps1_T', 'train/train/Maps3_T', 'train/train/Maps4_T']))
+    train=dict(ann_dir=[
+        'train/train/annotations', 'train/train/Maps1_T',
+        'train/train/Maps3_T', 'train/train/Maps4_T'
+    ]))
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 runner = dict(type='IterBasedRunner', max_iters=10000)
