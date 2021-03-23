@@ -42,7 +42,9 @@ class FCNMulLabelHead(FCNHead):
         self.label_ind = mul_label_ind
         self.final_label_ind = final_label_ind
         self.wei_net_backbone = build_backbone(wei_net_backbone)
-        self.wei_net_fc = nn.Linear(fc_in_channels, num_experts)
+        self.wei_expert_fc = nn.Linear(fc_in_channels, num_experts)
+        self.wei_expert_pool = nn.AvgPool2d(kernel_size=256)
+        self.wei_expert_softmax = nn.Softmax(dim=1)
         self.wei_net_conv = cnn.build_conv_layer(wei_net_conv)
         self.wei_net_softmax = nn.Softmax(dim=1)
         self.wei_net_backbone.init_weights(pretrained)
@@ -84,9 +86,10 @@ class FCNMulLabelHead(FCNHead):
         """
         seg_logits = self.forward(inputs)
         feature_map = self.wei_net_backbone(img)[-1]
+        bs = feature_map.shape[0]
         weight_map = self.wei_net_softmax(self.wei_net_conv(feature_map))
-        weight_expert = self.wei_net_fc(
-            feature_map.reshape([feature_map.shape[0], -1]))
+        weight_expert = self.wei_expert_softmax(
+            self.wei_expert_fc(self.wei_expert_pool(feature_map).view(bs, -1)))
         weight_expert = weight_expert.reshape(
             [weight_expert.shape[0], weight_expert.shape[1], 1,
              1]).expand_as(weight_map)

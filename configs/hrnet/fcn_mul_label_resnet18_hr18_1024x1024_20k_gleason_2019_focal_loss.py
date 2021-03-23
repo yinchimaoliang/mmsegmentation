@@ -27,7 +27,7 @@ model = dict(
         loss_decode=dict(type='FocalLoss', gamma=0.1),
         loss_single=dict(type='FocalLoss', gamma=0.1),
         sigma=1,
-        fc_in_channels=33554432,
+        fc_in_channels=512,
         loss_step=1000))
 
 data = dict(
@@ -39,4 +39,4 @@ data = dict(
     ]))
 
 # optimizer
-optimizer = dict(type='SGD', lr=0.0001, momentum=0.9, weight_decay=0.0005)
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
