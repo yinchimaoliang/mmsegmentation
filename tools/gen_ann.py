@@ -44,6 +44,8 @@ def main(data_path, target_path, train_ratio):
             sub_img = train_img[up:down + 1, left:right + 1, :]
             sub_ann = ann[up:down + 1, left:right + 1]
             sub_ann[sub_ann > 0] = 1
+            if sub_ann.shape[0] < 2 or sub_ann.shape[1] < 2:
+                continue
             mmcv.imwrite(
                 sub_img,
                 osp.join(target_path, 'train', 'images',
@@ -69,13 +71,15 @@ def main(data_path, target_path, train_ratio):
             sub_img = valid_img[up:down + 1, left:right + 1, :]
             sub_ann = ann[up:down + 1, left:right + 1]
             sub_ann[sub_ann > 0] = 1
+            if sub_ann.shape[0] < 2 or sub_ann.shape[1] < 2:
+                continue
             mmcv.imwrite(
                 sub_img,
-                osp.join(target_path, 'train', 'images',
+                osp.join(target_path, 'valid', 'images',
                          valid_name.split('.')[0] + '_' + str(i) + '.png'))
             mmcv.imwrite(
                 sub_ann,
-                osp.join(target_path, 'train', 'annotations',
+                osp.join(target_path, 'valid', 'annotations',
                          valid_name.split('.')[0] + '_' + str(i) + '.png'))
 
 
