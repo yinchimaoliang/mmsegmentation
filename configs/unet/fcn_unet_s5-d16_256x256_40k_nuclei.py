@@ -11,6 +11,7 @@ norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
     backbone=dict(norm_cfg=norm_cfg),
     decode_head=dict(norm_cfg=norm_cfg),
-    auxiliary_head=dict(norm_cfg=norm_cfg))
+    auxiliary_head=dict(norm_cfg=norm_cfg),
+    test_cfg=dict(mode='whole'))
 
 data = dict(samples_per_gpu=10, workers_per_gpu=10)
