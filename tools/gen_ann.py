@@ -35,6 +35,7 @@ def main(data_path, target_path, train_ratio):
         for i, ann_name in enumerate(ann_names):
             ann = mmcv.imread(
                 osp.join(data_path, train_name, 'masks', ann_name), 0)
+            print(ann_name)
             poses = np.where(ann > 0)
             up = poses[0].min()
             down = poses[0].max()
@@ -42,6 +43,7 @@ def main(data_path, target_path, train_ratio):
             right = poses[1].max()
             sub_img = train_img[up:down + 1, left:right + 1, :]
             sub_ann = ann[up:down + 1, left:right + 1]
+            sub_ann[sub_ann > 0] = 1
             mmcv.imwrite(
                 sub_img,
                 osp.join(target_path, 'train', 'images',
@@ -58,6 +60,7 @@ def main(data_path, target_path, train_ratio):
         for i, ann_name in enumerate(ann_names):
             ann = mmcv.imread(
                 osp.join(data_path, valid_name, 'masks', ann_name), 0)
+            print(ann_name)
             poses = np.where(ann > 0)
             up = poses[0].min()
             down = poses[0].max()
@@ -65,6 +68,7 @@ def main(data_path, target_path, train_ratio):
             right = poses[1].max()
             sub_img = valid_img[up:down + 1, left:right + 1, :]
             sub_ann = ann[up:down + 1, left:right + 1]
+            sub_ann[sub_ann > 0] = 1
             mmcv.imwrite(
                 sub_img,
                 osp.join(target_path, 'train', 'images',
