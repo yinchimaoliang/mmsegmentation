@@ -11,7 +11,10 @@ from scipy import ndimage
 from torch.nn import Conv2d, Dropout, LayerNorm, Linear, Softmax
 from torch.nn.modules.utils import _pair
 
-from ..builder import SEGMENTORS
+from mmseg.models.segmentors.base import BaseSegmentor
+from mmseg.ops import resize
+from ..builder import SEGMENTORS, build_loss
+from ..losses import accuracy
 from . import vit_seg_configs as configs
 from .vit_seg_modeling_resnet_skip import ResNetV2
 
@@ -419,14 +422,16 @@ class DecoderCup(nn.Module):
 
 
 @SEGMENTORS.register_module()
-class VisionTransformer(nn.Module):
+class VisionTransformer(BaseSegmentor):
 
     def __init__(self,
                  config_name,
-                 img_size=1024,
+                 loss_config,
+                 img_size=256,
                  num_classes=5,
                  zero_head=False,
                  vis=False,
+                 align_corners=False,
                  **kwargs):
         super(VisionTransformer, self).__init__()
         self.num_classes = num_classes
@@ -441,14 +446,133 @@ class VisionTransformer(nn.Module):
             kernel_size=3,
         )
         self.config = config
+        self.loss_func = build_loss(loss_config)
+        self.align_corners = align_corners
 
-    def forward(self, x):
+    def forward_step(self, x):
         if x.size()[1] == 1:
             x = x.repeat(1, 3, 1, 1)
         x, attn_weights, features = self.transformer(x)  # (B, n_patch, hidden)
         x = self.decoder(x, features)
         logits = self.segmentation_head(x)
         return logits
+
+    def forward_test(self, imgs, img_metas, **kwargs):
+        for var, name in [(imgs, 'imgs'), (img_metas, 'img_metas')]:
+            if not isinstance(var, list):
+                raise TypeError(f'{name} must be a list, but got '
+                                f'{type(var)}')
+
+        num_augs = len(imgs)
+        if num_augs != len(img_metas):
+            raise ValueError(f'num of augmentations ({len(imgs)}) != '
+                             f'num of image meta ({len(img_metas)})')
+        # all images in the same aug batch all of the same ori_shape and pad
+        # shape
+        for img_meta in img_metas:
+            ori_shapes = [_['ori_shape'] for _ in img_meta]
+            assert all(shape == ori_shapes[0] for shape in ori_shapes)
+            img_shapes = [_['img_shape'] for _ in img_meta]
+            assert all(shape == img_shapes[0] for shape in img_shapes)
+            pad_shapes = [_['pad_shape'] for _ in img_meta]
+            assert all(shape == pad_shapes[0] for shape in pad_shapes)
+
+        if num_augs == 1:
+            return self.simple_test(imgs[0], img_metas[0], **kwargs)
+        else:
+            return self.aug_test(imgs, img_metas, **kwargs)
+
+    def simple_test(self, img, img_meta, rescale=True):
+        seg_logit = self.forward_step(img)
+        if rescale:
+            seg_logit = resize(
+                seg_logit,
+                size=img_meta[0]['ori_shape'][:2],
+                mode='bilinear',
+                align_corners=self.align_corners,
+                warning=False)
+
+        seg_pred = seg_logit.argmax(dim=1)
+
+        seg_pred = seg_pred.cpu().numpy()
+        seg_pred = list(seg_pred)
+        return seg_pred
+
+    def forward(self, img, img_metas, return_loss=True, **kwargs):
+        """Calls either :func:`forward_train` or :func:`forward_test` depending
+        on whether ``return_loss`` is ``True``.
+
+        Note this setting will change the expected inputs. When
+        ``return_loss=True``, img and img_meta are single-nested (i.e. Tensor
+        and List[dict]), and when ``resturn_loss=False``, img and img_meta
+        should be double nested (i.e.  List[Tensor], List[List[dict]]), with
+        the outer list indicating test time augmentations.
+        """
+        if return_loss:
+            return self.forward_train(img, img_metas, **kwargs)
+        else:
+            return self.forward_test(img, img_metas, **kwargs)
+
+    def train_step(self, data_batch, optimizer, **kwargs):
+        """The iteration step during training.
+
+        This method defines an iteration step during training, except for the
+        back propagation and optimizer updating, which are done in an optimizer
+        hook. Note that in some complicated cases or models, the whole process
+        including back propagation and optimizer updating is also defined in
+        this method, such as GAN.
+
+        Args:
+            data (dict): The output of dataloader.
+            optimizer (:obj:`torch.optim.Optimizer` | dict): The optimizer of
+                runner is passed to ``train_step()``. This argument is unused
+                and reserved.
+
+        Returns:
+            dict: It should contain at least 3 keys: ``loss``, ``log_vars``,
+                ``num_samples``.
+                ``loss`` is a tensor for back propagation, which can be a
+                weighted sum of multiple losses.
+                ``log_vars`` contains all the variables to be sent to the
+                logger.
+                ``num_samples`` indicates the batch size (when the model is
+                DDP, it means the batch size on each GPU), which is used for
+                averaging the logs.
+        """
+        losses = self(**data_batch)
+        loss, log_vars = self._parse_losses(losses)
+
+        outputs = dict(
+            loss=loss,
+            log_vars=log_vars,
+            num_samples=len(data_batch['img'].data))
+
+        return outputs
+
+    def forward_train(self, img, img_metas, gt_semantic_seg):
+        """Forward function for training.
+
+        Args:
+            img (Tensor): Input images.
+            img_metas (list[dict]): List of image info dict where each dict
+                has: 'img_shape', 'scale_factor', 'flip', and may also contain
+                'filename', 'ori_shape', 'pad_shape', and 'img_norm_cfg'.
+                For details on the values of these keys see
+                `mmseg/datasets/pipelines/formatting.py:Collect`.
+            gt_semantic_seg (Tensor): Semantic segmentation masks
+                used if the architecture supports semantic segmentation task.
+
+        Returns:
+            dict[str, Tensor]: a dictionary of loss components
+        """
+        seg_label = gt_semantic_seg.squeeze(1)
+        seg_logits = self.forward_step(img)
+
+        loss = self.loss_func(img, seg_logits, seg_label, ignore_index=255)
+        losses = dict(seg_loss=loss)
+        losses['acc_seg'] = accuracy(seg_logits, seg_label)
+
+        return losses
 
     def load_from(self, weights):
         with torch.no_grad():

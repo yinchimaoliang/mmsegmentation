@@ -65,7 +65,10 @@ def get_r50_b16_config():
 def get_b32_config():
     """Returns the ViT-B/32 configuration."""
     config = get_b16_config()
-    config.patches.size = (32, 32)
+    # config.patches.grid = (16, 16)
+    config.patches.size = (64, 64)
+    config.n_skip = 3
+    config.skip_channels = [512, 256, 64, 8]
     config.pretrained_path = '../model/vit_checkpoint/imagenet21k/ViT-B_32.npz'
     return config
 
@@ -99,7 +102,7 @@ def get_r50_l16_config():
     customized
     """
     config = get_l16_config()
-    config.patches.grid = (16, 16)
+    config.patches.grid = (32, 32)
     config.resnet = ml_collections.ConfigDict()
     config.resnet.num_layers = (3, 4, 9)
     config.resnet.width_factor = 1
@@ -109,7 +112,8 @@ def get_r50_l16_config():
         '../model/vit_checkpoint/imagenet21k/R50+ViT-B_16.npz'
     config.decoder_channels = (256, 128, 64, 16)
     config.skip_channels = [512, 256, 64, 16]
-    config.n_classes = 2
+    config.n_classes = 4
+    config.n_skip = 3
     config.activation = 'softmax'
     return config
 
