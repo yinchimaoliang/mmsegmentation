@@ -10,8 +10,8 @@ model = dict(
     img_size=512)
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
-runner = dict(type='IterBasedRunner', max_iters=10000)
-checkpoint_config = dict(by_epoch=False, interval=1000)
+runner = dict(type='IterBasedRunner', max_iters=50000)
+checkpoint_config = dict(by_epoch=False, interval=5000)
 evaluation = dict(interval=500, metric='mDice')
 
 # dataset settings
