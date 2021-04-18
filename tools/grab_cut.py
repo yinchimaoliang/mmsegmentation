@@ -27,7 +27,8 @@ def grab_cut(img_path, target_path):
             left = j * 1000
             down = min(up + 1000, img.shape[0])
             right = min(left + 1000, img.shape[1])
-            rect = [up, left, 1000, 1000]
+            rect = [left, up, 1000, 1000]
+            mask = np.zeros(img.shape[:2], np.uint8)
             cv.grabCut(img, mask, rect, bgdModel, fgdModel, 5,
                        cv.GC_INIT_WITH_RECT)
 
