@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from mmcv.cnn import ConvModule
 
 from mmseg.models.builder import build_backbone, build_head
 
@@ -53,8 +54,54 @@ class Generator(nn.Module):
         return output
 
 
+class Discriminator(nn.Module):
+
+    def __init__(self,
+                 img_size=(512, 512),
+                 in_channels=4 + 4,
+                 act_cfg=dict(type='LeakyReLU')):
+        super(Discriminator, self).__init__()
+        self.net = nn.Sequential(
+            ConvModule(
+                in_channels=in_channels,
+                out_channels=32,
+                kernel_size=3,
+                padding=1,
+                norm_cfg=norm_cfg,
+                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=4, stride=4),
+            ConvModule(
+                in_channels=32,
+                out_channels=64,
+                kernel_size=3,
+                padding=1,
+                norm_cfg=norm_cfg,
+                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=4, stride=4),
+            ConvModule(
+                in_channels=64,
+                out_channels=128,
+                kernel_size=3,
+                padding=1,
+                norm_cfg=norm_cfg,
+                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=4, stride=4))
+        self.fc = nn.Linear(
+            int(img_size[0] * img_size[1] / (64 * 64) * 128), 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, input):
+        feature = self.net(input)
+        score = self.sigmoid(self.fc(feature.view(feature.shape[0], -1)))
+        return score
+
+
 if __name__ == '__main__':
     generator = Generator()
+    discriminator = Discriminator()
+    img = torch.rand(4, 3, 512, 512)
     x = torch.rand(4, 1, 512, 512)
     syn = generator(x)
-    print(syn)
+    gt = torch.randint(0, 4, (4, 1, 512, 512)).float()
+    gt = gt / 4
+    syn_input = torch.cat([syn, gt], dim=1)
+    real_input = torch.cat([img, gt], dim=1)
+    input = torch.cat([syn_input, real_input], dim=1)
+    score = discriminator(input)
