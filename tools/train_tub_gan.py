@@ -1,7 +1,10 @@
 import argparse
 
+import os
 import mmcv
 import torch
+import numpy as np
+import os.path as osp
 from mmcv.cnn import ConvModule
 from torch import nn, optim
 from torch.utils.data import DataLoader, Dataset
@@ -49,7 +52,7 @@ LOSS_L1_CFG = dict(type='L1Loss', loss_weight=1.0)
 def parse_args():
     parser = argparse.ArgumentParser(description='Train tub-gan')
     parser.add_argument(
-        '--batch_size', type=int, default=128, help='Batch size (default=128)')
+        '--batch_size', type=int, default=2, help='Batch size (default=128)')
     parser.add_argument(
         '--lr', type=float, default=0.01, help='Learning rate (default=0.01)')
     parser.add_argument(
@@ -59,6 +62,8 @@ def parse_args():
         type=str,
         default='./work_dirs/tub_gan',
         help='Dir to save results.')
+        
+    parser.add_argument('--cuda', action='store_true', help='Enable cuda')
     args = parser.parse_args()
 
     return args
@@ -72,31 +77,33 @@ class GleasonDataset(Dataset):
 
     def __getitem__(self, idx):
         name = self.names[idx]
-        img = cv.imread(os.path.join(self.data_root, 'images', name))
-        img = cv.resize(img, (512, 512))
+        img = mmcv.imread(os.path.join(self.data_root, 'images', name))
+        img = mmcv.imresize(img, (512, 512))
         img = img / 255
-        ann = cv.imread(os.path.join(self.data_root, 'annotations', name), 0)
-        ann = cv.resize(ann, (512, 512))
+        ann = mmcv.imread(os.path.join(self.data_root, 'annotations', name), 0)
+        ann = mmcv.imresize(ann, (512, 512))
         img = torch.from_numpy(img)
         ann = torch.from_numpy(ann)
-        return img.permute(2, 0, 1), ann
+        ann = ann.unsqueeze(2)
+        return img.permute(2, 0, 1).float(), ann.permute(2, 0, 1).float()
 
     def __len__(self):
         return len(self.names)
 
 
-class Generator(nn.Module):
+class SynGenerator(nn.Module):
 
     def __init__(self,
                  backbone_cfg=BACKBONE_CFG,
                  decode_head_cfg=DECODE_HEAD_CFG):
-        super(Generator, self).__init__()
+        super(SynGenerator, self).__init__()
         self.backbone = build_backbone(backbone_cfg)
         self.decode_head = build_head(decode_head_cfg)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         features = self.backbone(x)
-        output = self.decode_head(features)
+        output = self.sigmoid(self.decode_head(features))
         return output
 
 
@@ -139,42 +146,156 @@ class Discriminator(nn.Module):
         return score
 
 
+class StyleGenerator(nn.Module):
+    def __init__(self, in_channels=3, act_cfg=dict(type='LeakyReLU')):
+        super(StyleGenerator, self).__init__()
+        self.layer1 = nn.Sequential(ConvModule(
+                in_channels=in_channels,
+                out_channels=64,
+                kernel_size=3,
+                padding=1,
+                norm_cfg=norm_cfg,
+                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=2, stride=2), nn.Sigmoid())
+        self.layer2 = nn.Sequential(ConvModule(
+                in_channels=64,
+                out_channels=128,
+                kernel_size=3,
+                padding=1,
+                norm_cfg=norm_cfg,
+                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=2, stride=2), nn.Sigmoid())
+        self.layer3 = nn.Sequential(ConvModule(
+                in_channels=128,
+                out_channels=256,
+                kernel_size=3,
+                padding=1,
+                norm_cfg=norm_cfg,
+                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=2, stride=2), nn.Sigmoid())
+        self.layer4 = nn.Sequential(ConvModule(
+                in_channels=256,
+                out_channels=512,
+                kernel_size=3,
+                padding=1,
+                norm_cfg=norm_cfg,
+                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=2, stride=2), nn.Sigmoid())
+        self.layer5 = nn.Sequential(ConvModule(
+                in_channels=512,
+                out_channels=512,
+                kernel_size=3,
+                padding=1,
+                norm_cfg=norm_cfg,
+                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=2, stride=2), nn.Sigmoid())
+
+    def forward(self, x):
+        feature1 = self.layer1(x)
+        feature2 = self.layer2(feature1)
+        feature3 = self.layer3(feature2)
+        feature4 = self.layer4(feature3)
+        feature5 = self.layer5(feature4)
+        feature1 = feature1.reshape((-1, feature1.shape[1], feature1.shape[2] * feature1.shape[3]))
+        feature2 = feature2.reshape((-1, feature2.shape[1], feature2.shape[2] * feature2.shape[3]))
+        feature3 = feature3.reshape((-1, feature3.shape[1], feature3.shape[2] * feature3.shape[3]))
+        feature4 = feature4.reshape((-1, feature4.shape[1], feature4.shape[2] * feature4.shape[3]))
+        feature5 = feature5.reshape((-1, feature5.shape[1], feature5.shape[2] * feature5.shape[3]))
+        feature1_T = feature1.transpose(2,1)
+        feature2_T = feature2.transpose(2,1)
+        feature3_T = feature3.transpose(2,1)
+        feature4_T = feature4.transpose(2,1)
+        feature5_T = feature5.transpose(2,1)
+        gram1 = torch.matmul(feature1, feature1_T) / (feature1.shape[1] * feature1.shape[2])
+        gram2 = torch.matmul(feature2, feature2_T) / (feature2.shape[1] * feature2.shape[2])
+        gram3 = torch.matmul(feature3, feature3_T) / (feature3.shape[1] * feature3.shape[2])
+        gram4 = torch.matmul(feature4, feature4_T) / (feature4.shape[1] * feature4.shape[2])
+        gram5 = torch.matmul(feature5, feature5_T) / (feature5.shape[1] * feature5.shape[2])
+
+        return [gram1, gram2, gram3, gram4, gram5]
+
 class Train():
 
     def __init__(self):
-        self.generator = Generator()
+        self.syn_generator = SynGenerator()
         self.discriminator = Discriminator()
+        self.style_generator = StyleGenerator()
         self.args = parse_args()
         args = parse_args()
         bs = args.batch_size
         lr = args.lr
-        epochs = args.epochs
-        work_dir = args.work_dir
-        mmcv.mkdir_or_exist(work_dir)
-        self.optim_d = optim.SGD(self.discriminator.parameters(), lr=args.lr)
-        self.optim_g = optim.SGD(self.generator.parameters(), lr=args.lr)
+        self.work_dir = args.work_dir
+        mmcv.mkdir_or_exist(self.work_dir)
+        mmcv.mkdir_or_exist(osp.join(self.work_dir, 'syns'))
+        self.epochs = args.epochs
+        self.cuda = args.cuda
+        self.optim_d = optim.SGD(self.discriminator.parameters(), lr=lr)
+        self.optim_g = optim.SGD(self.syn_generator.parameters(), lr=lr)
         self.loss_ce = nn.CrossEntropyLoss()
         self.loss_l1 = build_loss(LOSS_L1_CFG)
+        train_dataset = GleasonDataset(data_root='./data/gleason_2019/train/train')
+        self.train_loader = DataLoader(
+        train_dataset, shuffle=True, batch_size=bs)
 
-    def get_loss(self, syn, real, syn_score, real_score):
-        d_loss_real = self.loss_ce(real_score,
-                                   torch.ones(real_score.shape[:-1]).long())
-        d_loss_fake = self.loss_ce(syn_score,
-                                   torch.zeros(syn_score.shape[:-1]).long())
-        d_loss = d_loss_real + d_loss_fake
-        g_loss_adversarial = self.loss_ce(
+    def train_step(self, train_x, train_y):
+        syn = self.syn_generator(train_y)
+        style_real = self.style_generator(train_x)
+        style_syn = self.style_generator(syn)
+        syn_input = torch.cat([syn, train_y], dim=1)
+        real_input = torch.cat([train_x, train_y], dim=1)
+        syn_score = self.discriminator(syn_input)
+        real_score = self.discriminator(real_input)
+        self.optim_d.zero_grad()
+        d_real_loss = self.loss_ce(real_score,
+                                   real_score.new_ones(real_score.shape[:-1]).long())
+        d_fake_loss = self.loss_ce(syn_score,
+                                   syn_score.new_zeros(syn_score.shape[:-1]).long())
+        d_loss = d_real_loss + d_fake_loss
+        d_loss.backward(retain_graph=True)
+        self.optim_d.step()
+        self.optim_g.zero_grad()
+        g_adversarial_loss = self.loss_ce(
             syn_score,
-            torch.ones(syn_score.shape[:-1]).long())
-        g_content_loss = self.loss_l1(syn, real)
-        g_loss = g_loss_adversarial + g_content_loss
-        return d_loss, g_loss
+            syn_score.new_ones(syn_score.shape[:-1]).long())
+        g_content_loss = self.loss_l1(syn, train_x)
+        g_style_loss = 0
+        for i in range(len(style_real)):
+            g_style_loss += self.loss_l1(style_real[i], style_syn[i])
+        g_tv_loss = self._get_tv_loss(syn)
+        g_loss = g_adversarial_loss + g_content_loss + g_style_loss + g_tv_loss
+        g_loss.backward(retain_graph=True)
+        self.optim_g.step()
+        return d_loss, g_loss, syn
+
+    def _get_tv_loss(self, syn):
+        x = self.loss_l1(syn[..., 1:, :], syn[..., -1:, :])
+        y = self.loss_l1(syn[..., :, 1:], syn[..., :, -1:])
+        return x + y
+
+    def show_result(self, syn):
+        bs = syn.shape[0]
+        for i in range(bs):
+            img = syn[i].detach().permute(1, 2, 0).cpu().numpy()
+            img = img * 255
+            mmcv.imwrite(img.astype(np.uint8), os.path.join(self.work_dir, 'syns', f'{i}.png'))
 
     def train(self):
-        pass
+        for epoch_idx in range(self.epochs):
+            self.syn_generator.train()
+            self.discriminator.train()
+            self.style_generator.train()
+            if self.cuda:
+                self.syn_generator.cuda()
+                self.discriminator.cuda()
+                self.style_generator.cuda()
+            for batch_idx, (train_x, train_y) in enumerate(self.train_loader):
+                if self.cuda:
+                    train_x = train_x.cuda()
+                    train_y = train_y.cuda()
+                d_loss, g_loss, syn = self.train_step(train_x, train_y)
+                if batch_idx % 10 == 0:
+                    self.show_result(syn)
+                    print(f'd_loss: {d_loss} | g_loss:{g_loss}')
+
 
 
 if __name__ == '__main__':
-    generator = Generator()
+    generator = SynGenerator()
     discriminator = Discriminator()
     img = torch.rand(4, 3, 512, 512)
     x = torch.rand(4, 1, 512, 512)
@@ -186,5 +307,4 @@ if __name__ == '__main__':
     syn_score = discriminator(syn_input)
     real_score = discriminator(real_input)
     train = Train()
-    d_loss, g_loss = train.get_loss(syn, img, syn_score, real_score)
-    print(d_loss, g_loss)
+    train.train()
