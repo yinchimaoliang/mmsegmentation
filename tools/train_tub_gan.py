@@ -232,6 +232,28 @@ class Train():
         self.train_loader = DataLoader(
         train_dataset, shuffle=True, batch_size=bs)
 
+    def get_g_loss(self, syn_score, syn, real, style_real, style_syn):
+        g_adversarial_loss = self.loss_ce(
+            syn_score,
+            syn_score.new_ones(syn_score.shape[:-1]).long())
+        g_content_loss = self.loss_l1(syn, real)
+        g_style_loss = 0
+        for i in range(len(style_real)):
+            g_style_loss += self.loss_l1(style_real[i], style_syn[i])
+        x = self.loss_l1(syn[..., 1:, :], syn[..., -1:, :])
+        y = self.loss_l1(syn[..., :, 1:], syn[..., :, -1:])
+        g_tv_loss = x + y
+        g_loss = g_adversarial_loss + g_content_loss + 10*g_style_loss
+        return g_loss
+
+    def get_d_loss(self, real_score, syn_score):
+        d_real_loss = self.loss_ce(real_score,
+                                   real_score.new_ones(real_score.shape[:-1]).long())
+        d_fake_loss = self.loss_ce(syn_score,
+                                   syn_score.new_zeros(syn_score.shape[:-1]).long())
+        d_loss = d_real_loss + d_fake_loss
+        return d_loss
+
     def train_step(self, train_x, train_y):
         syn = self.syn_generator(train_y)
         style_real = self.style_generator(train_x)
@@ -241,31 +263,15 @@ class Train():
         syn_score = self.discriminator(syn_input)
         real_score = self.discriminator(real_input)
         self.optim_d.zero_grad()
-        d_real_loss = self.loss_ce(real_score,
-                                   real_score.new_ones(real_score.shape[:-1]).long())
-        d_fake_loss = self.loss_ce(syn_score,
-                                   syn_score.new_zeros(syn_score.shape[:-1]).long())
-        d_loss = d_real_loss + d_fake_loss
+        d_loss = self.get_d_loss(real_score, syn_score)
         d_loss.backward(retain_graph=True)
         self.optim_d.step()
         self.optim_g.zero_grad()
-        g_adversarial_loss = self.loss_ce(
-            syn_score,
-            syn_score.new_ones(syn_score.shape[:-1]).long())
-        g_content_loss = self.loss_l1(syn, train_x)
-        g_style_loss = 0
-        for i in range(len(style_real)):
-            g_style_loss += self.loss_l1(style_real[i], style_syn[i])
-        g_tv_loss = self._get_tv_loss(syn)
-        g_loss = g_adversarial_loss + g_content_loss + g_style_loss + g_tv_loss
+        g_loss = self.get_g_loss(syn_score, syn, train_x, style_real, style_syn)
         g_loss.backward(retain_graph=True)
         self.optim_g.step()
         return d_loss, g_loss, syn
 
-    def _get_tv_loss(self, syn):
-        x = self.loss_l1(syn[..., 1:, :], syn[..., -1:, :])
-        y = self.loss_l1(syn[..., :, 1:], syn[..., :, -1:])
-        return x + y
 
     def show_result(self, syn):
         bs = syn.shape[0]
