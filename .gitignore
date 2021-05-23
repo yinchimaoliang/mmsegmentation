@@ -115,3 +115,8 @@ work_dirs/
 
 # Pytorch
 *.pth
+
+
+# Data
+*.png
+*.csv
