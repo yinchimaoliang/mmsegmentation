@@ -8,6 +8,11 @@ model = dict(
     backbone=dict(norm_cfg=norm_cfg, ),
     decode_head=dict(type='FCNHead', num_classes=4, norm_cfg=norm_cfg))
 
+data = dict(
+    samples_per_gpu=2,
+    workers_per_gpu=2,
+    train=dict(ann_dir='train/train/annotations'))
+
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 runner = dict(type='IterBasedRunner', max_iters=10000)
 checkpoint_config = dict(by_epoch=False, interval=1000)
