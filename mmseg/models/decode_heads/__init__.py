@@ -8,6 +8,7 @@ from .dnl_head import DNLHead
 from .ema_head import EMAHead
 from .enc_head import EncHead
 from .fcn_head import FCNHead
+from .fcn_mul_label_head import FCNMulLabelHead
 from .fpn_head import FPNHead
 from .gc_head import GCHead
 from .lraspp_head import LRASPPHead
@@ -24,5 +25,5 @@ __all__ = [
     'FCNHead', 'PSPHead', 'ASPPHead', 'PSAHead', 'NLHead', 'GCHead', 'CCHead',
     'UPerHead', 'DepthwiseSeparableASPPHead', 'ANNHead', 'DAHead', 'OCRHead',
     'EncHead', 'DepthwiseSeparableFCNHead', 'FPNHead', 'EMAHead', 'DNLHead',
-    'PointHead', 'APCHead', 'DMHead', 'LRASPPHead'
+    'PointHead', 'APCHead', 'DMHead', 'LRASPPHead', 'FCNMulLabelHead'
 ]

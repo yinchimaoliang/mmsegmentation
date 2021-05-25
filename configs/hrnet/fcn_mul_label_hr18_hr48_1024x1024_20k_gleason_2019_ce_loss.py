@@ -1,4 +1,4 @@
-_base_ = './fcn_hr18_1024x1024_20k_gleason_2019_focal_loss.py'
+_base_ = './fcn_hr18_1024x1024_20k_gleason_2019_ce_loss.py'
 norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
     pretrained='open-mmlab://msra/hrnetv2_w48',
@@ -52,10 +52,11 @@ model = dict(
         pretrained='open-mmlab://msra/hrnetv2_w18',
         num_classes=4,
         norm_cfg=norm_cfg,
-        loss_decode=dict(type='FocalLoss'),
-        loss_single=dict(type='FocalLoss'),
+        loss_decode=dict(type='CrossEntropyLoss'),
+        loss_single=dict(type='CrossEntropyLoss'),
         sigma=1,
-        loss_step=1000))
+        loss_step=1000,
+        pool_kernel=1))
 
 data = dict(
     samples_per_gpu=2,
