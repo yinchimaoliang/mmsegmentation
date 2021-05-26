@@ -591,7 +591,8 @@ class RandomRotate(object):
                  pad_val=0,
                  seg_pad_val=255,
                  center=None,
-                 auto_bound=False):
+                 auto_bound=False,
+                 degree_choice=None):
         self.prob = prob
         assert prob >= 0 and prob <= 1
         if isinstance(degree, (float, int)):
@@ -605,6 +606,7 @@ class RandomRotate(object):
         self.seg_pad_val = seg_pad_val
         self.center = center
         self.auto_bound = auto_bound
+        self.degree_choice = degree_choice
 
     def __call__(self, results):
         """Call function to rotate image, semantic segmentation maps.
@@ -617,7 +619,10 @@ class RandomRotate(object):
         """
 
         rotate = True if np.random.rand() < self.prob else False
-        degree = np.random.uniform(min(*self.degree), max(*self.degree))
+        if self.degree_choice is None:
+            degree = np.random.uniform(min(*self.degree), max(*self.degree))
+        else:
+            degree = np.random.choice(self.degree_choice)
         if rotate:
             # rotate image
             results['img'] = mmcv.imrotate(
