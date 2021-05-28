@@ -10,7 +10,8 @@ model = dict(
         type='FCNHead',
         num_classes=4,
         norm_cfg=norm_cfg,
-        loss_decode=dict(type='SoftmaxFocalLoss', alpha=1, gamma=0.1)))
+        loss_decode=dict(
+            type='FocalLoss', use_sigmoid=False, alpha=1, gamma=0.1)))
 
 data = dict(
     samples_per_gpu=2,
