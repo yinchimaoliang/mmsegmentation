@@ -1,7 +1,6 @@
 import torch.nn as nn
 from mmcv.ops import softmax_focal_loss as softmax_focal_loss_func
 
-from mmseg.models.losses.utils import weight_reduce_loss
 from ..builder import LOSSES
 
 
@@ -15,13 +14,11 @@ def softmax_focal_loss(pred,
                        avg_factor=None,
                        ignore_index=-100):
     pred = pred.permute(0, 2, 3, 1).reshape(-1, pred.shape[1])
-    target = target.flatten().contiguous()
+    target = target.flatten()
     valid = (target != ignore_index)
     loss = softmax_focal_loss_func(pred[valid], target[valid], gamma, alpha,
-                                   weight, 'none')
-    reduce_loss = weight_reduce_loss(
-        loss, weight, reduction=reduction, avg_factor=avg_factor)
-    return reduce_loss
+                                   class_weight, reduction)
+    return loss
 
 
 def sigmoid_focal_loss(pred,
