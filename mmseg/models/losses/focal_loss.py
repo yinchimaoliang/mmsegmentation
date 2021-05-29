@@ -12,12 +12,15 @@ def softmax_focal_loss(pred,
                        class_weight=None,
                        reduction='mean',
                        avg_factor=None,
-                       ignore_index=-100):
+                       ignore_index=-100,
+                       *args,
+                       **kwargs):
     pred = pred.permute(0, 2, 3, 1).reshape(-1, pred.shape[1])
     target = target.flatten()
     valid = (target != ignore_index)
     loss = softmax_focal_loss_func(pred[valid], target[valid], gamma, alpha,
-                                   class_weight, reduction)
+                                   class_weight, 'none')
+    loss = loss.mean()
     return loss
 
 
