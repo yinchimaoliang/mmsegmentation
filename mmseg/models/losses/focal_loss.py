@@ -1,61 +1,65 @@
+import torch
 import torch.nn as nn
-from mmcv.ops import softmax_focal_loss as softmax_focal_loss_func
+import torch.nn.functional as F
 
 from ..builder import LOSSES
+from .utils import expand_onehot_labels, weight_reduce_loss
 
 
 def softmax_focal_loss(pred,
-                       target,
-                       gamma,
-                       alpha,
-                       weight=None,
-                       class_weight=None,
-                       reduction='mean',
-                       avg_factor=None,
-                       ignore_index=-100,
-                       *args,
-                       **kwargs):
-    pred = pred.permute(0, 2, 3, 1).reshape(-1, pred.shape[1])
-    target = target.flatten()
-    valid = (target != ignore_index)
-    loss = softmax_focal_loss_func(pred[valid], target[valid], gamma, alpha,
-                                   class_weight, 'none')
-    loss = loss.mean()
-    return loss
-
-
-def sigmoid_focal_loss(pred,
                        label,
                        weight=None,
                        class_weight=None,
                        reduction='mean',
                        avg_factor=None,
-                       ignore_index=-100):
-    pass
+                       ignore_index=255,
+                       eps=1e-7,
+                       gamma=0,
+                       **kwargs):
+    B, C, H, W = pred.size()
+
+    target, weight = expand_onehot_labels(label, weight, pred.shape,
+                                          ignore_index)
+
+    if weight is not None:
+        weight = weight.float()
+    if class_weight is not None:
+        weight *= torch.tensor(class_weight).reshape(
+            1, C, 1, 1).expand_as(weight).to(weight)
+
+    probs = F.softmax(pred, dim=1)
+    probs = (probs * target)
+    probs = probs.clamp(eps, 1. - eps)
+
+    log_p = probs.log()
+
+    loss = -(torch.pow((1 - probs), gamma)) * log_p
+    loss = weight_reduce_loss(loss, weight, reduction, avg_factor)
+
+    return loss
 
 
 @LOSSES.register_module()
 class FocalLoss(nn.Module):
 
     def __init__(self,
-                 gamma,
-                 alpha,
                  use_sigmoid=False,
-                 class_weight=None,
+                 loss_weight=1,
+                 gamma=0,
                  reduction='mean',
-                 loss_weight=1.0,
-                 *args,
+                 class_weight=None,
+                 eps=1e-7,
                  **kwargs):
         super(FocalLoss, self).__init__()
         self.gamma = gamma
-        self.alpha = alpha
+        self.eps = eps
+        self.class_weight = class_weight
+        self.loss_weight = loss_weight
+        self.reduction = reduction
         if use_sigmoid:
-            self.cls_criterion = sigmoid_focal_loss
+            raise NotImplementedError
         else:
             self.cls_criterion = softmax_focal_loss
-        self.class_weight = class_weight
-        self.reduction = reduction
-        self.loss_weight = loss_weight
 
     def forward(self,
                 cls_score,
@@ -64,29 +68,23 @@ class FocalLoss(nn.Module):
                 avg_factor=None,
                 reduction_override=None,
                 **kwargs):
+        """only support ignore at 0."""
         assert reduction_override in (None, 'none', 'mean', 'sum')
         reduction = (
             reduction_override if reduction_override else self.reduction)
-
         if self.class_weight is not None:
             class_weight = cls_score.new_tensor(self.class_weight)
         else:
             class_weight = None
+
         loss_cls = self.loss_weight * self.cls_criterion(
             cls_score,
             label,
-            self.gamma,
-            self.alpha,
             weight,
             class_weight=class_weight,
             reduction=reduction,
             avg_factor=avg_factor,
+            eps=self.eps,
+            gamma=self.gamma,
             **kwargs)
         return loss_cls
-
-    def __repr__(self):
-        s = self.__class__.__name__
-        s += f'(gamma={self.gamma}, '
-        s += f'alpha={self.alpha}, '
-        s += f'reduction={self.reduction})'
-        return s

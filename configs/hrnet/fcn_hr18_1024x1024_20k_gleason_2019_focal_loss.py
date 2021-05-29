@@ -10,15 +10,14 @@ model = dict(
         type='FCNHead',
         num_classes=4,
         norm_cfg=norm_cfg,
-        loss_decode=dict(
-            type='FocalLoss', use_sigmoid=False, alpha=1, gamma=0.1)))
+        loss_decode=dict(type='FocalLoss', use_sigmoid=False, gamma=0.1)))
 
 data = dict(
     samples_per_gpu=2,
     workers_per_gpu=2,
     train=dict(ann_dir='train/train/annotations'))
 
-optimizer = dict(type='SGD', lr=0.0001, momentum=0.9, weight_decay=0.0005)
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
 lr_config = dict(policy='poly', power=0.1, min_lr=1e-6, by_epoch=False)
 runner = dict(type='IterBasedRunner', max_iters=10000)
 checkpoint_config = dict(by_epoch=False, interval=1000)

@@ -2,6 +2,7 @@ import functools
 
 import mmcv
 import numpy as np
+import torch
 import torch.nn.functional as F
 
 
@@ -21,6 +22,28 @@ def get_class_weight(class_weight):
             class_weight = mmcv.load(class_weight)
 
     return class_weight
+
+
+def expand_onehot_labels(labels, label_weights, target_shape, ignore_index):
+    """Expand onehot labels to match the size of prediction."""
+    bin_labels = labels.new_zeros(target_shape)
+    valid_mask = (labels >= 0) & (labels != ignore_index)
+    inds = torch.nonzero(valid_mask, as_tuple=True)
+
+    if inds[0].numel() > 0:
+        if labels.dim() == 3:
+            bin_labels[inds[0], labels[valid_mask], inds[1], inds[2]] = 1
+        else:
+            bin_labels[inds[0], labels[valid_mask]] = 1
+
+    valid_mask = valid_mask.unsqueeze(1).expand(target_shape).float()
+    if label_weights is None:
+        bin_label_weights = valid_mask
+    else:
+        bin_label_weights = label_weights.unsqueeze(1).expand(target_shape)
+        bin_label_weights *= valid_mask
+
+    return bin_labels, bin_label_weights
 
 
 def reduce_loss(loss, reduction):
