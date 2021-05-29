@@ -2,8 +2,18 @@ import functools
 
 import mmcv
 import numpy as np
+import scipy.stats as st
 import torch
 import torch.nn.functional as F
+
+
+def gkern(kernlen=21, nsig=3):
+    """Returns a 2D Gaussian kernel."""
+
+    x = np.linspace(-nsig, nsig, kernlen + 1)
+    kern1d = np.diff(st.norm.cdf(x))
+    kern2d = np.outer(kern1d, kern1d)
+    return kern2d / kern2d.sum()
 
 
 def get_class_weight(class_weight):
@@ -41,7 +51,7 @@ def expand_onehot_labels(labels, label_weights, target_shape, ignore_index):
         bin_label_weights = valid_mask
     else:
         bin_label_weights = label_weights.unsqueeze(1).expand(target_shape)
-        bin_label_weights *= valid_mask
+        bin_label_weights = valid_mask * bin_label_weights
 
     return bin_labels, bin_label_weights
 
