@@ -29,14 +29,3 @@ model = dict(
         sigma=1,
         fc_in_channels=512,
         loss_step=1000))
-
-data = dict(
-    samples_per_gpu=2,
-    workers_per_gpu=2,
-    train=dict(ann_dir=[
-        'train/train/annotations', 'train/train/Maps1_T',
-        'train/train/Maps3_T', 'train/train/Maps4_T'
-    ]))
-
-# optimizer
-optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)

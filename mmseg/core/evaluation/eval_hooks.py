@@ -37,7 +37,9 @@ class EvalHook(_EvalHook):
             self.dataloader,
             show=False,
             efficient_test=self.efficient_test)
-        self.evaluate(runner, results)
+        key_score = self.evaluate(runner, results)
+        if self.save_best is not None:
+            self._save_ckpt(runner, key_score)
 
     def after_train_epoch(self, runner):
         """After train epoch hook.
