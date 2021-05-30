@@ -35,7 +35,8 @@ def softmax_focal_loss(pred,
 
     loss = -(torch.pow((1 - probs), gamma)) * log_p
     loss = weight_reduce_loss(loss, weight, reduction, avg_factor)
-
+    if loss.ndim == 4:
+        loss = loss.sum(1)
     return loss
 
 
