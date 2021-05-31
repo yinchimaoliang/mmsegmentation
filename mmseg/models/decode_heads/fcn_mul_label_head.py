@@ -119,7 +119,8 @@ class FCNMulLabelHead(FCNHead):
             seg_logit,
             seg_label[..., self.final_label_ind],
             weight=seg_weight,
-            ignore_index=self.ignore_index)
+            ignore_index=self.ignore_index,
+            img=img)
 
         loss_mul_labels = []
         for label_ind in self.label_ind:
@@ -129,7 +130,8 @@ class FCNMulLabelHead(FCNHead):
                     seg_label[..., label_ind],
                     weight=seg_weight,
                     ignore_index=self.ignore_index,
-                    reduction_override='none'))
+                    reduction_override='none',
+                    img=img))
 
         iter_num_sig = self.sigma * (torch.sigmoid(
             torch.tensor(self.iter_num // self.loss_step).float()) - 1 / 2) * 2
