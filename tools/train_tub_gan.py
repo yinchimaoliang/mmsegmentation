@@ -142,7 +142,8 @@ class Discriminator(nn.Module):
 
     def forward(self, input):
         feature = self.net(input)
-        score = self.sigmoid(self.fc(feature.view(feature.shape[0], -1)))
+        feature = feature.reshape(feature.shape[0], -1)
+        score = self.sigmoid(self.fc(feature))
         return score
 
 
@@ -259,14 +260,14 @@ class Train():
         g_adversarial_loss = self.loss_ce(
             syn_score,
             syn_score.new_ones(syn_score.shape[:-1]).long())
+        # g_adversarial_loss.backward()
         g_content_loss = self.loss_l1(syn, real)
+        # g_content_loss.backward(retain_graph=True)
         g_style_loss = 0
         for i in range(len(style_real)):
             g_style_loss = g_style_loss + self.loss_l1(style_real[i],
                                                        style_syn[i])
-        # x = self.loss_l1(syn[..., 1:, :], syn[..., -1:, :])
-        # y = self.loss_l1(syn[..., :, 1:], syn[..., :, -1:])
-        # g_tv_loss = x + y
+        # g_style_loss.backward(retain_graph=True)
         g_loss = g_adversarial_loss + g_content_loss + 10 * g_style_loss
         return g_loss
 
@@ -289,13 +290,14 @@ class Train():
         syn_score = self.discriminator(syn_input)
         real_score = self.discriminator(real_input)
         self.optim_d.zero_grad()
-        d_loss = self.get_d_loss(real_score, syn_score)
-        d_loss.backward(retain_graph=True)
-        self.optim_d.step()
         self.optim_g.zero_grad()
+        d_loss = self.get_d_loss(real_score, syn_score)
         g_loss = self.get_g_loss(syn_score, syn, train_x, style_real,
                                  style_syn)
+        d_loss.backward(retain_graph=True)
+        torch.autograd.set_detect_anomaly(True)
         g_loss.backward(retain_graph=True)
+        self.optim_d.step()
         self.optim_g.step()
         return d_loss, g_loss, syn
 
