@@ -34,8 +34,8 @@ test_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=4,
-    workers_per_gpu=4,
+    samples_per_gpu=64,
+    workers_per_gpu=64,
     train=dict(
         type='RepeatDataset',
         times=40000,
@@ -54,6 +54,6 @@ data = dict(
     test=dict(
         type=dataset_type,
         data_root=data_root,
-        img_dir='valid/images',
-        ann_dir='valid/annotations',
+        img_dir='test/images',
+        ann_dir='test/annotations',
         pipeline=test_pipeline))
