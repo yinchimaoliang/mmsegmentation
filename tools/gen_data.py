@@ -20,6 +20,7 @@ def parse_args():
         help='path of the source data')
     parser.add_argument(
         '--train-ratio', type=float, default=0.7, help='ratio for training')
+    parser.add_argument('--op', default='split', help='Type of operation')
     args = parser.parse_args()
 
     return args
@@ -56,11 +57,11 @@ def spilt_data(source_path, ratio, target_path):
         mmcv.imwrite(
             img,
             osp.join(target_path, 'train', 'images',
-                     train_name.replace('training.tif', '.png')))
+                     train_name.replace('_training.tif', '.png')))
         mmcv.imwrite(
             ann,
             osp.join(target_path, 'train', 'annotations',
-                     train_name.replace('training.tif', '.png')))
+                     train_name.replace('_training.tif', '_manual1.png')))
         print(f'{train_name} finished')
 
     for valid_name in valid_names:
@@ -85,8 +86,12 @@ def spilt_data(source_path, ratio, target_path):
         mmcv.imwrite(
             ann,
             osp.join(target_path, 'valid', 'annotations',
-                     valid_name.replace('training.tif', '.png')))
+                     valid_name.replace('training.tif', '_manual1.png')))
         print(f'{valid_name} finished')
+
+
+def convert_data(source_path, target_path):
+    pass
 
 
 if __name__ == '__main__':
@@ -94,4 +99,6 @@ if __name__ == '__main__':
     source_path = args.source_path
     target_path = args.target_path
     train_ratio = args.train_ratio
-    spilt_data(source_path, train_ratio, target_path)
+    op = args.op
+    if op == 'split':
+        spilt_data(source_path, train_ratio, target_path)
