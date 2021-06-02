@@ -7,7 +7,7 @@ norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
     backbone=dict(norm_cfg=norm_cfg),
     decode_head=dict(norm_cfg=norm_cfg),
-    auxiliary_head=dict(norm_cfg=norm_cfg, ),
+    auxiliary_head=dict(norm_cfg=norm_cfg),
     test_cfg=dict(crop_size=(64, 64), stride=(42, 42)))
 
 checkpoint_config = dict(interval=-1, save_last=True)

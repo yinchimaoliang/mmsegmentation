@@ -1,4 +1,4 @@
-_base_ = './fcn_hr18_64x64_80k_drive.py'
+_base_ = './fcn_hr18_64x64_80k_drive_ce_loss.py'
 model = dict(
     pretrained='open-mmlab://msra/hrnetv2_w48',
     backbone=dict(
