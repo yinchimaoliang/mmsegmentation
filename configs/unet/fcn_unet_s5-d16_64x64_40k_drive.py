@@ -10,6 +10,5 @@ model = dict(
     auxiliary_head=dict(norm_cfg=norm_cfg, ),
     test_cfg=dict(crop_size=(64, 64), stride=(42, 42)))
 
-runner = dict(type='IterBasedRunner', max_iters=10000)
-checkpoint_config = dict(by_epoch=False, interval=-1, save_last=True)
-evaluation = dict(interval=1000, metric='mDice')
+checkpoint_config = dict(by_epoch=False, interval=4000, save_last=True)
+evaluation = dict(metric='mDice')

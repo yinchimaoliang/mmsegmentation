@@ -91,7 +91,15 @@ def spilt_data(source_path, ratio, target_path):
 
 
 def convert_data(source_path, target_path):
-    pass
+    img_names = os.listdir(osp.join(source_path, 'images_origin'))
+    mmcv.mkdir_or_exist(osp.join(target_path, 'images'))
+    for img_name in img_names:
+        img = mmcv.imread(osp.join(source_path, 'images_origin', img_name))
+        mmcv.imwrite(
+            img,
+            osp.join(target_path, 'images',
+                     img_name.replace('_test.tif', '.png')))
+        print(f'{img_name} finished')
 
 
 if __name__ == '__main__':
@@ -100,5 +108,8 @@ if __name__ == '__main__':
     target_path = args.target_path
     train_ratio = args.train_ratio
     op = args.op
+    assert op in ['split', 'convert'], 'Operation not supported'
     if op == 'split':
         spilt_data(source_path, train_ratio, target_path)
+    elif op == 'convert':
+        convert_data(source_path, target_path)
