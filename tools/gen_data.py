@@ -102,14 +102,31 @@ def convert_data(source_path, target_path):
         print(f'{img_name} finished')
 
 
+def apply_mask(ann_dir, mask_dir, mask_idx=255):
+    names = os.listdir(ann_dir)
+    for name in names:
+        ann = mmcv.imread(osp.join(ann_dir, name), 0)
+        mask = np.array(
+            Image.open(
+                osp.join(mask_dir,
+                         name.replace('_manual1.png', '_test_mask.gif'))))
+        ann[mask == 0] = mask_idx
+        mmcv.imwrite(ann, osp.join(ann_dir, name))
+        print(f'{name} finished')
+
+
 if __name__ == '__main__':
     args = parse_args()
     source_path = args.source_path
     target_path = args.target_path
     train_ratio = args.train_ratio
     op = args.op
-    assert op in ['split', 'convert'], 'Operation not supported'
+    assert op in ['split', 'convert', 'apply_mask'], 'Operation not supported'
     if op == 'split':
         spilt_data(source_path, train_ratio, target_path)
     elif op == 'convert':
         convert_data(source_path, target_path)
+    elif op == 'apply_mask':
+        apply_mask(
+            osp.join(source_path, 'annotations'),
+            osp.join(source_path, 'mask'))
