@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..builder import LOSSES
-from .utils import expand_onehot_labels, gkern, weight_reduce_loss
+from .utils import expand_onehot_labels, weight_reduce_loss
 
 
 def softmax_focal_loss(pred,
@@ -89,42 +89,3 @@ class FocalLoss(nn.Module):
             gamma=self.gamma,
             **kwargs)
         return loss_cls
-
-
-@LOSSES.register_module()
-class GaussAttentionFocalLoss(FocalLoss):
-
-    def __init__(self, gauss_scale, gauss_kernel, gauss_sigma, **kwargs):
-        self.gauss_scale = gauss_scale
-        self.gauss_kernel = gauss_kernel
-        self.gauss_sigma = gauss_sigma
-        super(GaussAttentionFocalLoss, self).__init__(**kwargs)
-
-    def forward(self,
-                cls_score,
-                label,
-                img,
-                weight=None,
-                class_weight=None,
-                avg_factor=None,
-                reduction_override=None,
-                **kwargs):
-        """only support ignore at 0."""
-        assert img is not None
-
-        kernel = gkern(self.gauss_kernel, self.gauss_sigma)
-        img = img.mean(dim=1, keepdim=True)
-        kernel = torch.from_numpy(kernel).to(img).expand(
-            1, 1, self.gauss_kernel, self.gauss_kernel)
-        img_blurred = F.conv2d(
-            img, nn.Parameter(kernel), padding=(self.gauss_kernel - 1) // 2)
-        img_weight = 1 + self.gauss_scale * torch.abs(
-            img_blurred - torch.mean(img, dim=1, keepdim=True))
-        img_weight = img_weight.squeeze(1)
-
-        if weight is None:
-            weight = img_weight
-        else:
-            weight *= img_weight
-        return super().forward(cls_score, label, weight, avg_factor,
-                               reduction_override, **kwargs)
