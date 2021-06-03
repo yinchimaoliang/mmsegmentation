@@ -60,6 +60,10 @@ def parse_args():
     parser.add_argument(
         '--train-data-root',
         default='./data/DRIVE/train',
+        help='Dir for style image path.')
+    parser.add_argument(
+        '--style-img-root',
+        default='data/DRIVE/test',
         help='Root dir for training data.')
     parser.add_argument(
         '--work-dir',
@@ -246,7 +250,7 @@ class Train():
         self.style_generator = StyleGenerator()
         self.args = parse_args()
         args = parse_args()
-        bs = args.batch_size
+        self.bs = args.batch_size
         lr = args.lr
         self.work_dir = args.work_dir
         train_data_root = args.train_data_root
@@ -259,8 +263,9 @@ class Train():
         self.loss_ce = nn.CrossEntropyLoss()
         self.loss_l1 = build_loss(LOSS_L1_CFG)
         train_dataset = GleasonDataset(data_root=train_data_root)
+        self.style_dataset = GleasonDataset(data_root=args.style_img_root)
         self.train_loader = DataLoader(
-            train_dataset, shuffle=True, batch_size=bs)
+            train_dataset, shuffle=True, batch_size=self.bs)
 
     def get_g_loss(self, syn_score, syn, real, style_real, style_syn):
         g_adversarial_loss = self.loss_ce(
@@ -287,9 +292,9 @@ class Train():
         d_loss = d_real_loss + d_fake_loss
         return d_loss
 
-    def train_step(self, train_x, train_y):
+    def train_step(self, train_x, train_y, style_x):
         syn = self.syn_generator(train_y)
-        style_real = self.style_generator(train_x)
+        style_real = self.style_generator(style_x)
         style_syn = self.style_generator(syn)
         syn_input = torch.cat([syn, train_y], dim=1)
         real_input = torch.cat([train_x, train_y], dim=1)
@@ -326,10 +331,14 @@ class Train():
                 self.discriminator.cuda()
                 self.style_generator.cuda()
             for batch_idx, (train_x, train_y) in enumerate(self.train_loader):
+                style_x = torch.stack([self.style_dataset[0][0]
+                                       ]).repeat(train_x.shape[0], 1, 1, 1)
                 if self.cuda:
                     train_x = train_x.cuda()
                     train_y = train_y.cuda()
-                d_loss, g_loss, syn = self.train_step(train_x, train_y)
+                    style_x = style_x.cuda()
+                d_loss, g_loss, syn = self.train_step(train_x, train_y,
+                                                      style_x)
                 if batch_idx % 10 == 0:
                     self.show_result(syn)
                     print(f'd_loss: {d_loss} | g_loss:{g_loss}')
