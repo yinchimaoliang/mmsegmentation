@@ -45,6 +45,21 @@ DECODE_HEAD_CFG = dict(
     loss_decode=dict(
         type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0))
 
+FEATURE_NET_CFG = dict(
+    type='ResNetV1c',
+    depth=18,
+    num_stages=4,
+    out_indices=(0, 1, 2, 3),
+    dilations=(1, 1, 2, 4),
+    strides=(1, 2, 1, 1),
+    norm_cfg=norm_cfg,
+    norm_eval=False,
+    style='pytorch',
+    contract_dilation=True)
+
+STYLE_LAYERS = [0, 1, 3]
+CONTENT_LAYERS = [2]
+
 LOSS_CE_CFG = dict(type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0)
 LOSS_L1_CFG = dict(type='L1Loss', loss_weight=1.0)
 
@@ -157,89 +172,33 @@ class Discriminator(nn.Module):
         return score
 
 
-class StyleGenerator(nn.Module):
+class FeatureGenerator(nn.Module):
 
     def __init__(self, in_channels=3, act_cfg=dict(type='LeakyReLU')):
-        super(StyleGenerator, self).__init__()
-        self.layer1 = nn.Sequential(
-            ConvModule(
-                in_channels=in_channels,
-                out_channels=64,
-                kernel_size=3,
-                padding=1,
-                norm_cfg=norm_cfg,
-                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=2, stride=2),
-            nn.Sigmoid())
-        self.layer2 = nn.Sequential(
-            ConvModule(
-                in_channels=64,
-                out_channels=128,
-                kernel_size=3,
-                padding=1,
-                norm_cfg=norm_cfg,
-                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=2, stride=2),
-            nn.Sigmoid())
-        self.layer3 = nn.Sequential(
-            ConvModule(
-                in_channels=128,
-                out_channels=256,
-                kernel_size=3,
-                padding=1,
-                norm_cfg=norm_cfg,
-                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=2, stride=2),
-            nn.Sigmoid())
-        self.layer4 = nn.Sequential(
-            ConvModule(
-                in_channels=256,
-                out_channels=512,
-                kernel_size=3,
-                padding=1,
-                norm_cfg=norm_cfg,
-                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=2, stride=2),
-            nn.Sigmoid())
-        self.layer5 = nn.Sequential(
-            ConvModule(
-                in_channels=512,
-                out_channels=512,
-                kernel_size=3,
-                padding=1,
-                norm_cfg=norm_cfg,
-                act_cfg=act_cfg), nn.AvgPool2d(kernel_size=2, stride=2),
-            nn.Sigmoid())
+        super(FeatureGenerator, self).__init__()
+        self.net = build_backbone(FEATURE_NET_CFG)
 
-    def forward(self, x):
-        feature1 = self.layer1(x)
-        feature2 = self.layer2(feature1)
-        feature3 = self.layer3(feature2)
-        feature4 = self.layer4(feature3)
-        feature5 = self.layer5(feature4)
-        feature1 = feature1.reshape(
-            (-1, feature1.shape[1], feature1.shape[2] * feature1.shape[3]))
-        feature2 = feature2.reshape(
-            (-1, feature2.shape[1], feature2.shape[2] * feature2.shape[3]))
-        feature3 = feature3.reshape(
-            (-1, feature3.shape[1], feature3.shape[2] * feature3.shape[3]))
-        feature4 = feature4.reshape(
-            (-1, feature4.shape[1], feature4.shape[2] * feature4.shape[3]))
-        feature5 = feature5.reshape(
-            (-1, feature5.shape[1], feature5.shape[2] * feature5.shape[3]))
-        feature1_T = feature1.transpose(2, 1)
-        feature2_T = feature2.transpose(2, 1)
-        feature3_T = feature3.transpose(2, 1)
-        feature4_T = feature4.transpose(2, 1)
-        feature5_T = feature5.transpose(2, 1)
-        gram1 = torch.matmul(feature1, feature1_T) / (
-            feature1.shape[1] * feature1.shape[2])
-        gram2 = torch.matmul(feature2, feature2_T) / (
-            feature2.shape[1] * feature2.shape[2])
-        gram3 = torch.matmul(feature3, feature3_T) / (
-            feature3.shape[1] * feature3.shape[2])
-        gram4 = torch.matmul(feature4, feature4_T) / (
-            feature4.shape[1] * feature4.shape[2])
-        gram5 = torch.matmul(feature5, feature5_T) / (
-            feature5.shape[1] * feature5.shape[2])
+    def forward_content(self, x):
+        features = self.net.forward(x)
+        content_features = []
+        for i, feature in enumerate(features):
+            if i in CONTENT_LAYERS:
+                content_features.append(feature)
+        return content_features
 
-        return [gram1, gram2, gram3, gram4, gram5]
+    def forward_style(self, x):
+        features = self.net.forward(x)
+        style_features = []
+        for i, feature in enumerate(features):
+            if i in STYLE_LAYERS:
+                feature = feature.reshape(feature.shape[0], feature.shape[1],
+                                          -1)
+                feature_T = feature.transpose(1, 2)
+                style_features.append(
+                    torch.bmm(feature, feature_T) /
+                    (feature.shape[0] * feature.shape[2]))
+
+        return style_features
 
 
 class Train():
@@ -247,7 +206,7 @@ class Train():
     def __init__(self):
         self.syn_generator = SynGenerator()
         self.discriminator = Discriminator()
-        self.style_generator = StyleGenerator()
+        self.feature_generator = FeatureGenerator()
         self.args = parse_args()
         args = parse_args()
         self.bs = args.batch_size
@@ -267,12 +226,17 @@ class Train():
         self.train_loader = DataLoader(
             train_dataset, shuffle=True, batch_size=self.bs)
 
-    def get_g_loss(self, syn_score, syn, real, style_real, style_syn):
+    def get_g_loss(self, syn_score, syn, real, style_real, style_syn,
+                   content_real, content_syn):
         g_adversarial_loss = self.loss_ce(
             syn_score,
             syn_score.new_ones(syn_score.shape[:-1]).long())
         # g_adversarial_loss.backward()
-        g_content_loss = self.loss_l1(syn, real)
+        # g_content_loss = self.loss_l1(real, syn)
+        g_content_loss = 0
+        for i in range(len(content_real)):
+            g_content_loss = g_content_loss + self.loss_l1(
+                content_real[i], content_syn[i])
         # g_content_loss.backward(retain_graph=True)
         g_style_loss = 0
         for i in range(len(style_real)):
@@ -294,8 +258,10 @@ class Train():
 
     def train_step(self, train_x, train_y, style_x):
         syn = self.syn_generator(train_y)
-        style_real = self.style_generator(style_x)
-        style_syn = self.style_generator(syn)
+        style_real = self.feature_generator.forward_style(style_x)
+        style_syn = self.feature_generator.forward_style(syn)
+        content_real = self.feature_generator.forward_content(style_x)
+        content_syn = self.feature_generator.forward_content(syn)
         syn_input = torch.cat([syn, train_y], dim=1)
         real_input = torch.cat([train_x, train_y], dim=1)
         syn_score = self.discriminator(syn_input)
@@ -304,7 +270,7 @@ class Train():
         self.optim_g.zero_grad()
         d_loss = self.get_d_loss(real_score, syn_score)
         g_loss = self.get_g_loss(syn_score, syn, train_x, style_real,
-                                 style_syn)
+                                 style_syn, content_real, content_syn)
         d_loss.backward(retain_graph=True)
         torch.autograd.set_detect_anomaly(True)
         g_loss.backward(retain_graph=True)
@@ -325,11 +291,11 @@ class Train():
         for epoch_idx in range(self.epochs):
             self.syn_generator.train()
             self.discriminator.train()
-            self.style_generator.train()
+            self.feature_generator.train()
             if self.cuda:
                 self.syn_generator.cuda()
                 self.discriminator.cuda()
-                self.style_generator.cuda()
+                self.feature_generator.cuda()
             for batch_idx, (train_x, train_y) in enumerate(self.train_loader):
                 style_x = torch.stack([self.style_dataset[0][0]
                                        ]).repeat(train_x.shape[0], 1, 1, 1)
