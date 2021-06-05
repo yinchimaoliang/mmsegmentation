@@ -69,7 +69,15 @@ def parse_args():
     parser.add_argument(
         '--batch_size', type=int, default=2, help='Batch size (default=128)')
     parser.add_argument(
-        '--lr', type=float, default=0.01, help='Learning rate (default=0.01)')
+        '--g_lr',
+        type=float,
+        default=0.0002,
+        help='Learning rate (default=0.01)')
+    parser.add_argument(
+        '--d_lr',
+        type=float,
+        default=0.0001,
+        help='Learning rate (default=0.01)')
     parser.add_argument(
         '--epochs', type=int, default=10, help='Number of training epochs.')
     parser.add_argument(
@@ -196,7 +204,7 @@ class FeatureGenerator(nn.Module):
                 feature_T = feature.transpose(1, 2)
                 style_features.append(
                     torch.bmm(feature, feature_T) /
-                    (feature.shape[0] * feature.shape[2]))
+                    (feature.shape[0] * feature.shape[2] * len(STYLE_LAYERS)))
 
         return style_features
 
@@ -210,15 +218,16 @@ class Train():
         self.args = parse_args()
         args = parse_args()
         self.bs = args.batch_size
-        lr = args.lr
+        d_lr = args.d_lr
+        g_lr = args.g_lr
         self.work_dir = args.work_dir
         train_data_root = args.train_data_root
         mmcv.mkdir_or_exist(self.work_dir)
         mmcv.mkdir_or_exist(osp.join(self.work_dir, 'syns'))
         self.epochs = args.epochs
         self.cuda = args.cuda
-        self.optim_d = optim.SGD(self.discriminator.parameters(), lr=lr)
-        self.optim_g = optim.SGD(self.syn_generator.parameters(), lr=lr)
+        self.optim_d = optim.SGD(self.discriminator.parameters(), lr=d_lr)
+        self.optim_g = optim.SGD(self.syn_generator.parameters(), lr=g_lr)
         self.loss_ce = nn.CrossEntropyLoss()
         self.loss_l1 = build_loss(LOSS_L1_CFG)
         train_dataset = GleasonDataset(data_root=train_data_root)
@@ -226,13 +235,17 @@ class Train():
         self.train_loader = DataLoader(
             train_dataset, shuffle=True, batch_size=self.bs)
 
-    def get_g_loss(self, syn_score, syn, real, style_real, style_syn,
-                   content_real, content_syn):
+    def get_g_loss(self, train_x, train_y, style_x):
+        syn = self.syn_generator(train_y)
+        style_real = self.feature_generator.forward_style(style_x)
+        style_syn = self.feature_generator.forward_style(syn)
+        content_real = self.feature_generator.forward_content(style_x)
+        content_syn = self.feature_generator.forward_content(syn)
+        syn_input = torch.cat([syn, train_y], dim=1)
+        syn_score = self.discriminator(syn_input)
         g_adversarial_loss = self.loss_ce(
             syn_score,
             syn_score.new_ones(syn_score.shape[:-1]).long())
-        # g_adversarial_loss.backward()
-        # g_content_loss = self.loss_l1(real, syn)
         g_content_loss = 0
         for i in range(len(content_real)):
             g_content_loss = g_content_loss + self.loss_l1(
@@ -246,7 +259,12 @@ class Train():
         g_loss = g_adversarial_loss + g_content_loss + 10 * g_style_loss
         return g_loss
 
-    def get_d_loss(self, real_score, syn_score):
+    def get_d_loss(self, train_x, train_y):
+        syn = self.syn_generator(train_y)
+        syn_input = torch.cat([syn, train_y], dim=1)
+        real_input = torch.cat([train_x, train_y], dim=1)
+        syn_score = self.discriminator(syn_input)
+        real_score = self.discriminator(real_input)
         d_real_loss = self.loss_ce(
             real_score,
             real_score.new_ones(real_score.shape[:-1]).long())
@@ -257,25 +275,18 @@ class Train():
         return d_loss
 
     def train_step(self, train_x, train_y, style_x):
-        syn = self.syn_generator(train_y)
-        style_real = self.feature_generator.forward_style(style_x)
-        style_syn = self.feature_generator.forward_style(syn)
-        content_real = self.feature_generator.forward_content(style_x)
-        content_syn = self.feature_generator.forward_content(syn)
-        syn_input = torch.cat([syn, train_y], dim=1)
-        real_input = torch.cat([train_x, train_y], dim=1)
-        syn_score = self.discriminator(syn_input)
-        real_score = self.discriminator(real_input)
-        self.optim_d.zero_grad()
         self.optim_g.zero_grad()
-        d_loss = self.get_d_loss(real_score, syn_score)
-        g_loss = self.get_g_loss(syn_score, syn, train_x, style_real,
-                                 style_syn, content_real, content_syn)
-        d_loss.backward(retain_graph=True)
-        torch.autograd.set_detect_anomaly(True)
+        g_loss = self.get_g_loss(train_x, train_y, style_x)
         g_loss.backward(retain_graph=True)
-        self.optim_d.step()
         self.optim_g.step()
+        self.optim_g.zero_grad()
+        g_loss = self.get_g_loss(train_x, train_y, style_x)
+        g_loss.backward(retain_graph=True)
+        self.optim_g.step()
+        self.optim_d.zero_grad()
+        d_loss = self.get_d_loss(train_x, train_y)
+        d_loss.backward(retain_graph=True)
+        self.optim_d.step()
         return d_loss, g_loss, syn
 
     def show_result(self, syn):
@@ -288,7 +299,7 @@ class Train():
                 os.path.join(self.work_dir, 'syns', f'{i}.png'))
 
     def train(self):
-        for epoch_idx in range(self.epochs):
+        for _ in range(self.epochs):
             self.syn_generator.train()
             self.discriminator.train()
             self.feature_generator.train()
