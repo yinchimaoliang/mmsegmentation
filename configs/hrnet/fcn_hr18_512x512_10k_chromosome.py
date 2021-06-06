@@ -6,7 +6,8 @@ _base_ = [
 # model settings
 norm_cfg = dict(type='BN', requires_grad=True)
 model = dict(
-    backbone=dict(norm_cfg=norm_cfg, ), decode_head=dict(norm_cfg=norm_cfg))
+    backbone=dict(norm_cfg=norm_cfg, ),
+    decode_head=dict(norm_cfg=norm_cfg, num_classes=2))
 
 runner = dict(type='IterBasedRunner', max_iters=10000)
 checkpoint_config = dict(by_epoch=False, interval=1000)
