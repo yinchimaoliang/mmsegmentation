@@ -13,4 +13,4 @@ model = dict(
 checkpoint_config = dict(by_epoch=False, interval=-1)
 evaluation = dict(
     interval=2000, metric='mDice', save_best='mDice', rule='greater')
-data = dict(samples_per_gpu=10, workers_per_gpu=10)
+data = dict(samples_per_gpu=10)
