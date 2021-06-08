@@ -67,19 +67,19 @@ LOSS_L1_CFG = dict(type='L1Loss', loss_weight=1.0)
 def parse_args():
     parser = argparse.ArgumentParser(description='Train tub-gan')
     parser.add_argument(
-        '--batch_size', type=int, default=2, help='Batch size (default=128)')
+        '--batch_size', type=int, default=1, help='Batch size (default=128)')
     parser.add_argument(
-        '--g_lr',
+        '--g-lr',
         type=float,
         default=0.0002,
         help='Learning rate (default=0.01)')
     parser.add_argument(
-        '--d_lr',
+        '--d-lr',
         type=float,
         default=0.0001,
         help='Learning rate (default=0.01)')
     parser.add_argument(
-        '--epochs', type=int, default=10, help='Number of training epochs.')
+        '--epochs', type=int, default=100, help='Number of training epochs.')
     parser.add_argument(
         '--train-data-root',
         default='./data/DRIVE/train',
@@ -135,8 +135,8 @@ class SynGenerator(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        features = self.backbone(x)
-        output = self.sigmoid(self.decode_head(features))
+        features = self.decode_head(self.backbone(x))
+        output = self.sigmoid(features)
         return output
 
 
@@ -171,12 +171,11 @@ class Discriminator(nn.Module):
                 act_cfg=act_cfg), nn.AvgPool2d(kernel_size=4, stride=4))
         self.fc = nn.Linear(
             int(img_size[0] * img_size[1] / (64 * 64) * 128), 2)
-        self.sigmoid = nn.Sigmoid()
 
     def forward(self, input):
         feature = self.net(input)
         feature = feature.reshape(feature.shape[0], -1)
-        score = self.sigmoid(self.fc(feature))
+        score = self.fc(feature)
         return score
 
 
@@ -243,6 +242,7 @@ class Train():
         content_syn = self.feature_generator.forward_content(syn)
         syn_input = torch.cat([syn, train_y], dim=1)
         syn_score = self.discriminator(syn_input)
+        dev_loss = self.loss_l1(syn, train_x)
         g_adversarial_loss = self.loss_ce(
             syn_score,
             syn_score.new_ones(syn_score.shape[:-1]).long())
@@ -257,6 +257,8 @@ class Train():
                                                        style_syn[i])
         # g_style_loss.backward(retain_graph=True)
         g_loss = g_adversarial_loss + g_content_loss + 10 * g_style_loss
+        +10 * dev_loss
+        # g_loss = g_adversarial_loss + dev_loss
         return g_loss
 
     def get_d_loss(self, train_x, train_y):
@@ -283,22 +285,24 @@ class Train():
         g_loss = self.get_g_loss(train_x, train_y, style_x)
         g_loss.backward(retain_graph=True)
         self.optim_g.step()
+        # g_loss = 0
         self.optim_d.zero_grad()
         d_loss = self.get_d_loss(train_x, train_y)
         d_loss.backward(retain_graph=True)
         self.optim_d.step()
-        return d_loss, g_loss, syn
+        return d_loss, g_loss
 
-    def show_result(self, syn):
+    def show_result(self, syn, idx):
         bs = syn.shape[0]
         for i in range(bs):
             img = syn[i].detach().permute(1, 2, 0).cpu().numpy()
             img = img * 255
             mmcv.imwrite(
                 img.astype(np.uint8),
-                os.path.join(self.work_dir, 'syns', f'{i}.png'))
+                os.path.join(self.work_dir, 'syns', f'{idx}_{i}.png'))
 
     def train(self):
+        mmcv.mkdir_or_exist(osp.join(self.work_dir, 'syns'))
         for _ in range(self.epochs):
             self.syn_generator.train()
             self.discriminator.train()
@@ -314,24 +318,12 @@ class Train():
                     train_x = train_x.cuda()
                     train_y = train_y.cuda()
                     style_x = style_x.cuda()
-                d_loss, g_loss, syn = self.train_step(train_x, train_y,
-                                                      style_x)
-                if batch_idx % 10 == 0:
-                    self.show_result(syn)
-                    print(f'd_loss: {d_loss} | g_loss:{g_loss}')
+                d_loss, g_loss = self.train_step(train_x, train_y, style_x)
+                syn = self.syn_generator(train_y)
+                self.show_result(syn, batch_idx)
+                print(f'd_loss: {d_loss} | g_loss:{g_loss}')
 
 
 if __name__ == '__main__':
-    generator = SynGenerator()
-    discriminator = Discriminator()
-    img = torch.rand(4, 3, 512, 512)
-    x = torch.rand(4, 1, 512, 512)
-    syn = generator(x)
-    gt = torch.randint(0, 4, (4, 1, 512, 512)).float()
-    gt = gt / 4
-    syn_input = torch.cat([syn, gt], dim=1)
-    real_input = torch.cat([img, gt], dim=1)
-    syn_score = discriminator(syn_input)
-    real_score = discriminator(real_input)
     train = Train()
     train.train()
