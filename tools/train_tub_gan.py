@@ -100,7 +100,7 @@ def parse_args():
     return args
 
 
-class GleasonDataset(Dataset):
+class DriveDataset(Dataset):
 
     def __init__(self, data_root):
         self.data_root = data_root
@@ -132,11 +132,12 @@ class SynGenerator(nn.Module):
         super(SynGenerator, self).__init__()
         self.backbone = build_backbone(backbone_cfg)
         self.decode_head = build_head(decode_head_cfg)
-        self.sigmoid = nn.Sigmoid()
+        self.tanh = nn.Tanh()
+        self.relu = nn.ReLU()
 
-    def forward(self, x):
+    def forward(self, x, z=None):
         features = self.decode_head(self.backbone(x))
-        output = self.sigmoid(features)
+        output = self.relu(self.tanh(features))
         return output
 
 
@@ -229,8 +230,8 @@ class Train():
         self.optim_g = optim.SGD(self.syn_generator.parameters(), lr=g_lr)
         self.loss_ce = nn.CrossEntropyLoss()
         self.loss_l1 = build_loss(LOSS_L1_CFG)
-        train_dataset = GleasonDataset(data_root=train_data_root)
-        self.style_dataset = GleasonDataset(data_root=args.style_img_root)
+        train_dataset = DriveDataset(data_root=train_data_root)
+        self.style_dataset = DriveDataset(data_root=args.style_img_root)
         self.train_loader = DataLoader(
             train_dataset, shuffle=True, batch_size=self.bs)
 
@@ -257,7 +258,7 @@ class Train():
                                                        style_syn[i])
         # g_style_loss.backward(retain_graph=True)
         g_loss = g_adversarial_loss + g_content_loss + 10 * g_style_loss
-        +10 * dev_loss
+        +100 * dev_loss
         # g_loss = g_adversarial_loss + dev_loss
         return g_loss
 
