@@ -5,13 +5,16 @@ import os.path as osp
 import mmcv
 import numpy as np
 import torch
-from mmcv.cnn import ConvModule
+from mmcv.cnn import kaiming_init  # noqa F401
+from mmcv.cnn import ConvModule, constant_init
 from torch import nn, optim
+from torch.nn.modules.batchnorm import _BatchNorm
 from torch.utils.data import DataLoader, Dataset
 
-from mmseg.models import build_backbone, build_head, build_loss
+from mmseg.models import build_backbone, build_head, build_loss  # noqa F401
 
 norm_cfg = dict(type='BN', requires_grad=True)
+U_LAYER_CFG = dict(type='deconv', scale_factor=2)
 
 BACKBONE_CFG = dict(
     type='UNet',
@@ -67,11 +70,11 @@ LOSS_L1_CFG = dict(type='L1Loss', loss_weight=1.0)
 def parse_args():
     parser = argparse.ArgumentParser(description='Train tub-gan')
     parser.add_argument(
-        '--batch_size', type=int, default=1, help='Batch size (default=128)')
+        '--batch_size', type=int, default=4, help='Batch size (default=128)')
     parser.add_argument(
         '--g-lr',
         type=float,
-        default=0.0002,
+        default=0.002,
         help='Learning rate (default=0.01)')
     parser.add_argument(
         '--d-lr',
@@ -127,18 +130,147 @@ class DriveDataset(Dataset):
 class SynGenerator(nn.Module):
 
     def __init__(self,
-                 backbone_cfg=BACKBONE_CFG,
-                 decode_head_cfg=DECODE_HEAD_CFG):
+                 in_channels=1,
+                 base_channels=64,
+                 act_cfg=dict(type='LeakyReLU'),
+                 out_channels=3):
         super(SynGenerator, self).__init__()
-        self.backbone = build_backbone(backbone_cfg)
-        self.decode_head = build_head(decode_head_cfg)
-        self.tanh = nn.Tanh()
+        self.d_layer1 = ConvModule(
+            in_channels=in_channels,
+            out_channels=base_channels,
+            kernel_size=4,
+            padding=1,
+            stride=2,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg)
+        self.d_layer2 = ConvModule(
+            in_channels=base_channels,
+            out_channels=2 * base_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg)
+        self.d_layer3 = ConvModule(
+            in_channels=2 * base_channels,
+            out_channels=4 * base_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg)
+        self.d_layer4 = ConvModule(
+            in_channels=4 * base_channels,
+            out_channels=8 * base_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg)
+        self.d_layer5 = ConvModule(
+            in_channels=8 * base_channels,
+            out_channels=8 * base_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg)
+        self.d_layer6 = ConvModule(
+            in_channels=8 * base_channels,
+            out_channels=8 * base_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg)
+        self.u_layer1 = ConvModule(
+            in_channels=8 * base_channels,
+            out_channels=4 * base_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg,
+            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
+        self.u_layer2 = ConvModule(
+            in_channels=12 * base_channels,
+            out_channels=8 * base_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg,
+            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
+        self.u_layer3 = ConvModule(
+            in_channels=12 * base_channels,
+            out_channels=4 * base_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg,
+            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
+        self.u_layer4 = ConvModule(
+            in_channels=16 * base_channels,
+            out_channels=4 * base_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg,
+            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
+        self.u_layer5 = ConvModule(
+            in_channels=8 * base_channels,
+            out_channels=2 * base_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg,
+            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
+        self.u_layer6 = ConvModule(
+            in_channels=4 * base_channels,
+            out_channels=base_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=None,
+            act_cfg=act_cfg,
+            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
+
+        self.final_layer = ConvModule(
+            in_channels=2 * base_channels,
+            out_channels=out_channels,
+            kernel_size=3,
+            padding=1,
+            stride=2,
+            norm_cfg=None,
+            act_cfg=dict(type='Tanh'),
+            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
         self.relu = nn.ReLU()
+        self.init_weights()
 
     def forward(self, x, z=None):
-        features = self.decode_head(self.backbone(x))
-        output = self.relu(self.tanh(features))
-        return output
+        features1 = self.d_layer1(x)
+        features2 = self.d_layer2(features1)
+        features3 = self.d_layer3(features2)
+        features4 = self.d_layer4(features3)
+        features5 = self.d_layer5(features4)
+        features6 = self.d_layer6(features5)
+        features5 = torch.cat([features5, self.u_layer1(features6)], dim=1)
+        features4 = torch.cat([features4, self.u_layer2(features5)], dim=1)
+        features3 = torch.cat([features3, self.u_layer4(features4)], dim=1)
+        features2 = torch.cat([features2, self.u_layer5(features3)], dim=1)
+        features1 = torch.cat([features1, self.u_layer6(features2)], dim=1)
+        syn = self.relu(self.final_layer(features1))
+        return syn
+
+    def init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                kaiming_init(m)
+            elif isinstance(m, (_BatchNorm, nn.GroupNorm)):
+                constant_init(m, 1)
 
 
 class Discriminator(nn.Module):
@@ -172,6 +304,7 @@ class Discriminator(nn.Module):
                 act_cfg=act_cfg), nn.AvgPool2d(kernel_size=4, stride=4))
         self.fc = nn.Linear(
             int(img_size[0] * img_size[1] / (64 * 64) * 128), 2)
+        self.init_weights()
 
     def forward(self, input):
         feature = self.net(input)
@@ -179,12 +312,20 @@ class Discriminator(nn.Module):
         score = self.fc(feature)
         return score
 
+    def init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                kaiming_init(m)
+            elif isinstance(m, (_BatchNorm, nn.GroupNorm)):
+                constant_init(m, 1)
+
 
 class FeatureGenerator(nn.Module):
 
     def __init__(self, in_channels=3, act_cfg=dict(type='LeakyReLU')):
         super(FeatureGenerator, self).__init__()
         self.net = build_backbone(FEATURE_NET_CFG)
+        self.init_weights()
 
     def forward_content(self, x):
         features = self.net.forward(x)
@@ -207,6 +348,13 @@ class FeatureGenerator(nn.Module):
                     (feature.shape[0] * feature.shape[2] * len(STYLE_LAYERS)))
 
         return style_features
+
+    def init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                kaiming_init(m)
+            elif isinstance(m, (_BatchNorm, nn.GroupNorm)):
+                constant_init(m, 1)
 
 
 class Train():
