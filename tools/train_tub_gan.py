@@ -66,15 +66,21 @@ CONTENT_LAYERS = [2]
 LOSS_CE_CFG = dict(type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0)
 LOSS_L1_CFG = dict(type='L1Loss', loss_weight=1.0)
 
+Z_CFG = dict(
+    input_shape=400,
+    fc_output=(64, 16, 16),
+    conv_in_channels=1152,
+    conv_out_channels=1024)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train tub-gan')
     parser.add_argument(
-        '--batch_size', type=int, default=4, help='Batch size (default=128)')
+        '--batch_size', type=int, default=1, help='Batch size (default=128)')
     parser.add_argument(
         '--g-lr',
         type=float,
-        default=0.002,
+        default=0.0002,
         help='Learning rate (default=0.01)')
     parser.add_argument(
         '--d-lr',
@@ -130,139 +136,53 @@ class DriveDataset(Dataset):
 class SynGenerator(nn.Module):
 
     def __init__(self,
-                 in_channels=1,
-                 base_channels=64,
+                 backbone_cfg=BACKBONE_CFG,
+                 decode_head_cfg=DECODE_HEAD_CFG,
                  act_cfg=dict(type='LeakyReLU'),
-                 out_channels=3):
+                 z_cfg=Z_CFG):
         super(SynGenerator, self).__init__()
-        self.d_layer1 = ConvModule(
-            in_channels=in_channels,
-            out_channels=base_channels,
-            kernel_size=4,
-            padding=1,
-            stride=2,
-            norm_cfg=norm_cfg,
-            act_cfg=act_cfg)
-        self.d_layer2 = ConvModule(
-            in_channels=base_channels,
-            out_channels=2 * base_channels,
-            kernel_size=3,
-            padding=1,
-            stride=2,
-            norm_cfg=norm_cfg,
-            act_cfg=act_cfg)
-        self.d_layer3 = ConvModule(
-            in_channels=2 * base_channels,
-            out_channels=4 * base_channels,
-            kernel_size=3,
-            padding=1,
-            stride=2,
-            norm_cfg=norm_cfg,
-            act_cfg=act_cfg)
-        self.d_layer4 = ConvModule(
-            in_channels=4 * base_channels,
-            out_channels=8 * base_channels,
-            kernel_size=3,
-            padding=1,
-            stride=2,
-            norm_cfg=norm_cfg,
-            act_cfg=act_cfg)
-        self.d_layer5 = ConvModule(
-            in_channels=8 * base_channels,
-            out_channels=8 * base_channels,
-            kernel_size=3,
-            padding=1,
-            stride=2,
-            norm_cfg=norm_cfg,
-            act_cfg=act_cfg)
-        self.d_layer6 = ConvModule(
-            in_channels=8 * base_channels,
-            out_channels=8 * base_channels,
-            kernel_size=3,
-            padding=1,
-            stride=2,
-            norm_cfg=norm_cfg,
-            act_cfg=act_cfg)
-        self.u_layer1 = ConvModule(
-            in_channels=8 * base_channels,
-            out_channels=4 * base_channels,
-            kernel_size=3,
-            padding=1,
-            stride=2,
-            norm_cfg=norm_cfg,
-            act_cfg=act_cfg,
-            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
-        self.u_layer2 = ConvModule(
-            in_channels=12 * base_channels,
-            out_channels=8 * base_channels,
-            kernel_size=3,
-            padding=1,
-            stride=2,
-            norm_cfg=norm_cfg,
-            act_cfg=act_cfg,
-            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
-        self.u_layer3 = ConvModule(
-            in_channels=12 * base_channels,
-            out_channels=4 * base_channels,
-            kernel_size=3,
-            padding=1,
-            stride=2,
-            norm_cfg=norm_cfg,
-            act_cfg=act_cfg,
-            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
-        self.u_layer4 = ConvModule(
-            in_channels=16 * base_channels,
-            out_channels=4 * base_channels,
-            kernel_size=3,
-            padding=1,
-            stride=2,
-            norm_cfg=norm_cfg,
-            act_cfg=act_cfg,
-            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
-        self.u_layer5 = ConvModule(
-            in_channels=8 * base_channels,
-            out_channels=2 * base_channels,
-            kernel_size=3,
-            padding=1,
-            stride=2,
-            norm_cfg=norm_cfg,
-            act_cfg=act_cfg,
-            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
-        self.u_layer6 = ConvModule(
-            in_channels=4 * base_channels,
-            out_channels=base_channels,
+        self.backbone = build_backbone(backbone_cfg)
+        self.decode_head = build_head(decode_head_cfg)
+        input_shape = z_cfg['input_shape']
+        self.fc_output = z_cfg['fc_output']
+        conv_in_channels = z_cfg['conv_in_channels']
+        conv_out_channels = z_cfg['conv_out_channels']
+        self.z_fc = nn.Linear(
+            input_shape,
+            self.fc_output[0] * self.fc_output[1] * self.fc_output[2])
+        self.z_conv = ConvModule(
+            in_channels=self.fc_output[0],
+            out_channels=2 * self.fc_output[0],
             kernel_size=3,
             padding=1,
             stride=2,
             norm_cfg=None,
             act_cfg=act_cfg,
             conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
-
-        self.final_layer = ConvModule(
-            in_channels=2 * base_channels,
-            out_channels=out_channels,
+        self.comb_conv = ConvModule(
+            in_channels=conv_in_channels,
+            out_channels=conv_out_channels,
             kernel_size=3,
             padding=1,
-            stride=2,
+            stride=1,
             norm_cfg=None,
-            act_cfg=dict(type='Tanh'),
-            conv_cfg=dict(type='ConvTranspose2d', output_padding=1))
+            act_cfg=act_cfg)
+        self.tanh = nn.Tanh()
         self.relu = nn.ReLU()
-        self.init_weights()
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x, z=None):
-        features1 = self.d_layer1(x)
-        features2 = self.d_layer2(features1)
-        features3 = self.d_layer3(features2)
-        features4 = self.d_layer4(features3)
-        features5 = self.d_layer5(features4)
-        features6 = self.d_layer6(features5)
-        features5 = torch.cat([features5, self.u_layer1(features6)], dim=1)
-        features4 = torch.cat([features4, self.u_layer2(features5)], dim=1)
-        features3 = torch.cat([features3, self.u_layer4(features4)], dim=1)
-        features2 = torch.cat([features2, self.u_layer5(features3)], dim=1)
-        features1 = torch.cat([features1, self.u_layer6(features2)], dim=1)
-        syn = self.relu(self.final_layer(features1))
+        features = self.backbone(x)
+        if z is not None:
+            z_features = self.z_fc(z).reshape(z.shape[0], self.fc_output[0],
+                                              self.fc_output[1],
+                                              self.fc_output[2])
+            z_features = self.z_conv(z_features)
+            feature = features.pop(0)
+            feature_comb = self.comb_conv(
+                torch.cat([z_features, feature], dim=1))
+            features.insert(0, feature_comb)
+        syn = self.relu(self.sigmoid(self.decode_head(features)))
         return syn
 
     def init_weights(self):
@@ -384,7 +304,12 @@ class Train():
             train_dataset, shuffle=True, batch_size=self.bs)
 
     def get_g_loss(self, train_x, train_y, style_x):
-        syn = self.syn_generator(train_y)
+        bs = train_x.shape[0]
+        input_shape = Z_CFG['input_shape']
+        z = torch.rand(bs, input_shape) / 10000
+        if self.cuda:
+            z = z.cuda()
+        syn = self.syn_generator(train_y, z)
         style_real = self.feature_generator.forward_style(style_x)
         style_syn = self.feature_generator.forward_style(syn)
         content_real = self.feature_generator.forward_content(style_x)
@@ -404,9 +329,13 @@ class Train():
         for i in range(len(style_real)):
             g_style_loss = g_style_loss + self.loss_l1(style_real[i],
                                                        style_syn[i])
+
+        tv_loss = 0
+        tv_loss += self.loss_l1(syn[:, :, 1:, :], syn[:, :, :-1, :])
+        tv_loss += self.loss_l1(syn[:, :, :, 1:], syn[:, :, :, :-1])
         # g_style_loss.backward(retain_graph=True)
         g_loss = g_adversarial_loss + g_content_loss + 10 * g_style_loss
-        +100 * dev_loss
+        +100 * dev_loss + 100 * tv_loss
         # g_loss = g_adversarial_loss + dev_loss
         return g_loss
 
