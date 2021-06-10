@@ -80,12 +80,12 @@ def parse_args():
     parser.add_argument(
         '--g-lr',
         type=float,
-        default=0.0002,
+        default=0.002,
         help='Learning rate (default=0.01)')
     parser.add_argument(
         '--d-lr',
         type=float,
-        default=0.0001,
+        default=0.001,
         help='Learning rate (default=0.01)')
     parser.add_argument(
         '--epochs', type=int, default=100, help='Number of training epochs.')
