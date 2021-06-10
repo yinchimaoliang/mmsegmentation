@@ -370,17 +370,27 @@ class Train():
         self.optim_d.step()
         return d_loss, g_loss
 
-    def show_result(self, syn, idx):
+    def show_result(self, train_y, idx):
+        self.syn_generator.eval()
+        syn = self.syn_generator(train_y)
+        self.syn_generator.train()
         bs = syn.shape[0]
         for i in range(bs):
             img = syn[i].detach().permute(1, 2, 0).cpu().numpy()
             img = img * 255
             mmcv.imwrite(
                 img.astype(np.uint8),
-                os.path.join(self.work_dir, 'syns', f'{idx}_{i}.png'))
+                os.path.join(self.work_dir, 'syns', 'images',
+                             f'{idx}_{i}.png'))
+            ann = train_y.detach().cpu().numpy().astype(np.uint8)[i].squeeze(0)
+            mmcv.imwrite(
+                ann,
+                os.path.join(self.work_dir, 'syns', 'annotations',
+                             f'{idx}_{i}.png'))
 
     def train(self):
-        mmcv.mkdir_or_exist(osp.join(self.work_dir, 'syns'))
+        mmcv.mkdir_or_exist(osp.join(self.work_dir, 'syns', 'images'))
+        mmcv.mkdir_or_exist(osp.join(self.work_dir, 'syns', 'annotations'))
         for _ in range(self.epochs):
             self.syn_generator.train()
             self.discriminator.train()
@@ -397,8 +407,8 @@ class Train():
                     train_y = train_y.cuda()
                     style_x = style_x.cuda()
                 d_loss, g_loss = self.train_step(train_x, train_y, style_x)
-                syn = self.syn_generator(train_y)
-                self.show_result(syn, batch_idx)
+                # syn = self.syn_generator(train_y)
+                self.show_result(train_y, batch_idx)
                 print(f'd_loss: {d_loss} | g_loss:{g_loss}')
 
 
