@@ -40,37 +40,28 @@ data = dict(
         data_root=data_root,
         img_dir='train/train/images',
         img_suffix='.png',
-        ann_dir='train/train/annotations',
+        ann_dir='train/train/annotations_3class',
         pipeline=train_pipeline,
         use_patch=False,
         random_sampling=False,
-        classes=[
-            'benign', 'gleason grade 3', 'gleason grade 4', 'gleason grade 5'
-        ],
-        palette=[[0, 0, 0], [255, 0, 0], [0, 255, 0], [0, 0, 255]]),
+        classes=['benign', 'gleason grade 3', 'gleason grade 4 and 5']),
     val=dict(
         type=dataset_type,
         data_root=data_root,
         img_dir='train/valid/images',
         img_suffix='.png',
-        ann_dir='train/valid/annotations',
+        ann_dir='train/valid/annotations_3class',
         pipeline=test_pipeline,
         use_patch=False,
         random_sampling=False,
-        classes=[
-            'benign', 'gleason grade 3', 'gleason grade 4', 'gleason grade 5'
-        ],
-        palette=[[0, 0, 0], [255, 0, 0], [0, 255, 0], [0, 0, 255]]),
+        classes=['benign', 'gleason grade 3', 'gleason grade 4 and 5']),
     test=dict(
         type=dataset_type,
         data_root=data_root,
         img_dir='valid/images',
         img_suffix='.png',
-        ann_dir='valid/annotations',
+        ann_dir='valid/annotations_3class',
         pipeline=test_pipeline,
         use_patch=False,
         random_sampling=False,
-        classes=[
-            'benign', 'gleason grade 3', 'gleason grade 4', 'gleason grade 5'
-        ],
-        palette=[[0, 0, 0], [255, 0, 0], [0, 255, 0], [0, 0, 255]]))
+        classes=['benign', 'gleason grade 3', 'gleason grade 4 and 5']))
