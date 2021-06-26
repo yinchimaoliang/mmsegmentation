@@ -16,10 +16,11 @@ model = dict(
         wei_net_conv=dict(
             type='Conv2d',
             in_channels=512,
-            out_channels=3,
+            out_channels=4,
             kernel_size=3,
             padding=1),
-        mul_label_ind=[1, 2, 3],
+        mul_label_ind=[1, 2, 3, 4],
+        num_experts=4,
         final_label_ind=0,
         pretrained='torchvision://resnet18',
         num_classes=4,
@@ -34,8 +35,8 @@ data = dict(
     samples_per_gpu=2,
     workers_per_gpu=2,
     train=dict(ann_dir=[
-        'train/train/annotations', 'train/train/Maps1_T',
-        'train/train/Maps3_T', 'train/train/Maps4_T'
+        'train/annotations', 'train/Maps1_T', 'train/Maps3_T', 'train/Maps4_T',
+        'train/he'
     ]))
 
 # optimizer

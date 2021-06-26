@@ -334,10 +334,20 @@ class Pad(object):
     def _pad_seg(self, results):
         """Pad masks according to ``results['pad_shape']``."""
         for key in results.get('seg_fields', []):
-            results[key] = mmcv.impad(
-                results[key],
-                shape=results['pad_shape'][:2],
-                pad_val=self.seg_pad_val)
+            if len(results[key].shape) == 3 and results[key].shape[2] != 3:
+                padded = []
+                for i in range(results[key].shape[2]):
+                    padded.append(
+                        mmcv.impad(
+                            results[key][..., i],
+                            shape=results['pad_shape'][:2],
+                            pad_val=self.seg_pad_val))
+                results[key] = np.stack(padded).transpose(1, 2, 0)
+            else:
+                results[key] = mmcv.impad(
+                    results[key],
+                    shape=results['pad_shape'][:2],
+                    pad_val=self.seg_pad_val)
 
     def __call__(self, results):
         """Call function to pad images, masks, semantic segmentation maps.

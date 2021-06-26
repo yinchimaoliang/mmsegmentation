@@ -13,7 +13,10 @@ def parse_args():
     parser.add_argument(
         '--vote-folders',
         type=list,
-        default=['Maps1_T', 'Maps3_T', 'Maps4_T', 'he'],
+        default=[
+            'Maps1_T', 'Maps2_T', 'Maps5_T', 'Maps6_T', 'Maps3_T', 'Maps4_T',
+            'he'
+        ],
         help='annotations folders involved in voting')
     parser.add_argument('--num-classes', default=4, help='number of classes')
     parser.add_argument(
@@ -50,6 +53,16 @@ def gen_vote(origin_path, vote_folders, target_path, num_classes, rule):
         print(f'{img_name} finished')
 
 
+def resize_he(img_path, he_path):
+    img_names = os.listdir(img_path)
+    for img_name in img_names:
+        he_img = mmcv.imread(osp.join(he_path, img_name), 0)
+        img = mmcv.imread(osp.join(img_path, img_name))
+        he_img = mmcv.imresize_like(he_img, img)
+        mmcv.imwrite(he_img, osp.join(he_path, img_name))
+        print(f'{img_name} finished.')
+
+
 def gen_data(origin_path, target_path):
     names = os.listdir(origin_path)
     for name in names:
@@ -66,8 +79,9 @@ def main():
     vote_folders = args.vote_folders
     num_classes = args.num_classes
     rule = args.rule
-    mmcv.mkdir_or_exist(target_path)
+    # mmcv.mkdir_or_exist(target_path)
     gen_vote(origin_path, vote_folders, target_path, num_classes, rule)
+    # resize_he(osp.join(origin_path, 'images'), osp.join(origin_path, 'he'))
 
 
 if __name__ == '__main__':
