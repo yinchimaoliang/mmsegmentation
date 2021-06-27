@@ -14,8 +14,8 @@ def parse_args():
         '--vote-folders',
         type=list,
         default=[
-            'Maps1_T', 'Maps2_T', 'Maps5_T', 'Maps6_T', 'Maps3_T', 'Maps4_T',
-            'he'
+            'Maps1_T', 'Maps3_T', 'Maps4_T', 'he_high', 'Maps2_T', 'Maps5_T',
+            'Maps6_T'
         ],
         help='annotations folders involved in voting')
     parser.add_argument('--num-classes', default=4, help='number of classes')
@@ -80,8 +80,9 @@ def main():
     num_classes = args.num_classes
     rule = args.rule
     # mmcv.mkdir_or_exist(target_path)
+    resize_he(
+        osp.join(origin_path, 'images'), osp.join(origin_path, 'he_high'))
     gen_vote(origin_path, vote_folders, target_path, num_classes, rule)
-    # resize_he(osp.join(origin_path, 'images'), osp.join(origin_path, 'he'))
 
 
 if __name__ == '__main__':
