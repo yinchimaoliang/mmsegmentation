@@ -11,7 +11,6 @@ model = dict(
 data = dict(samples_per_gpu=2, workers_per_gpu=2)
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
-runner = dict(type='IterBasedRunner', max_iters=10000)
 checkpoint_config = dict(by_epoch=False, save_last=True, interval=-1)
 evaluation = dict(
-    interval=1000, metric='mDice', save_best='mDice', rule='greater')
+    interval=2000, metric='mDice', save_best='mDice', rule='greater')
