@@ -13,7 +13,10 @@ def parse_args():
     parser.add_argument(
         '--vote-folders',
         type=list,
-        default=['Maps1_T', 'Maps3_T', 'Maps4_T'],
+        default=[
+            'Maps1_T', 'Maps3_T', 'Maps4_T', 'he_high', 'Maps2_T', 'Maps5_T',
+            'Maps6_T'
+        ],
         help='annotations folders involved in voting')
     parser.add_argument('--num-classes', default=4, help='number of classes')
     parser.add_argument(
