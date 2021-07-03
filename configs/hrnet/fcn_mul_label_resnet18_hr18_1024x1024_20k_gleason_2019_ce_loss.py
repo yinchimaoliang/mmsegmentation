@@ -29,11 +29,9 @@ model = dict(
         loss_single=dict(type='CrossEntropyLoss'),
         sigma=1,
         fc_in_channels=512,
-        loss_step=1000))
+        loss_step=2000))
 
 data = dict(
-    samples_per_gpu=2,
-    workers_per_gpu=2,
     train=dict(ann_dir=[
         'train/annotations', 'train/Maps1_T', 'train/Maps3_T', 'train/Maps4_T',
         'train/he_high'
