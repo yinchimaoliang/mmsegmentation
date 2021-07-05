@@ -36,6 +36,3 @@ data = dict(
         'train/annotations', 'train/Maps1_T', 'train/Maps3_T', 'train/Maps4_T',
         'train/he_high'
     ]))
-
-# optimizer
-optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
