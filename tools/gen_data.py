@@ -10,6 +10,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Generate annotations data')
     parser.add_argument('--origin-path', help='original data path')
     parser.add_argument('--target-path', help='target data path')
+    parser.add_argument('--img-path', help='image data path')
+    parser.add_argument('--ann-path', help='annotation data path')
     parser.add_argument(
         '--vote-folders',
         type=list,
@@ -60,6 +62,20 @@ def resize_he(img_path, he_path):
         print(f'{img_name} finished.')
 
 
+def convert_ann_tools(img_path, ann_path):
+    ann_names = os.listdir(ann_path)
+    for ann_name in ann_names:
+        if 'mask' in ann_name:
+            ann = mmcv.imread(osp.join(ann_path, ann_name), 0)
+            target_name = ann_name.replace('_mask', '')
+            img = mmcv.imread(
+                osp.join(img_path, target_name.replace('png', 'jpg')))
+            ann = mmcv.imresize_like(ann, img)
+            mmcv.imwrite(ann, osp.join(ann_path, target_name))
+            os.remove(osp.join(ann_path, ann_name))
+            print(f'{ann_name} finished')
+
+
 def gen_data(origin_path, target_path):
     names = os.listdir(origin_path)
     for name in names:
@@ -75,7 +91,10 @@ def main():
     target_path = args.target_path
     vote_folders = args.vote_folders
     num_classes = args.num_classes
+    img_path = args.img_path
+    ann_path = args.ann_path
     rule = args.rule
+    convert_ann_tools(img_path, ann_path)
     # mmcv.mkdir_or_exist(target_path)
     # resize_he(
     #     osp.join(origin_path, 'images'), osp.join(origin_path, 'he_high'))
